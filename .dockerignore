@@ -1,0 +1,16 @@
+**/__pycache__/
+**/*.pyc
+**/.venv/
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+**/node_modules/
+apps/web/dist/
+.git/
+.env
+.env.*
+!.env.example
+.plans/
+eval/results/
+.model_cache/
+*.md

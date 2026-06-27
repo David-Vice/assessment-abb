@@ -1,0 +1,18 @@
+[project]
+name = "abb-rag-core"
+version = "0.1.0"
+description = "Shared RAG core: chunking, embeddings, pgvector, retrieval, rerank"
+requires-python = ">=3.12"
+dependencies = [
+    "abb-contracts",
+    "pydantic>=2.9",
+    "pydantic-settings>=2.5",
+    "structlog>=24.4",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["abb_rag"]

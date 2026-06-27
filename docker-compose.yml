@@ -1,0 +1,99 @@
+name: abb-rag
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-abb}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-abb}
+      POSTGRES_DB: ${POSTGRES_DB:-abb_rag}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-abb} -d ${POSTGRES_DB:-abb_rag}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [abb_net]
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [abb_net]
+
+  ingestion:
+    build:
+      context: .
+      dockerfile: apps/ingestion/Dockerfile
+    env_file: [.env]
+    ports:
+      - "8001:8001"
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8001/health').status==200 else 1)\""]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    networks: [abb_net]
+
+  chat:
+    build:
+      context: .
+      dockerfile: apps/chat/Dockerfile
+    env_file: [.env]
+    ports:
+      - "8002:8002"
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8002/health').status==200 else 1)\""]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    networks: [abb_net]
+
+  analytics:
+    build:
+      context: .
+      dockerfile: apps/analytics/Dockerfile
+    env_file: [.env]
+    ports:
+      - "8003:8003"
+    depends_on:
+      postgres: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8003/health').status==200 else 1)\""]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    networks: [abb_net]
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    ports:
+      - "5173:80"
+    depends_on:
+      - chat
+      - ingestion
+      - analytics
+    networks: [abb_net]
+
+volumes:
+  pg_data:
+
+networks:
+  abb_net:

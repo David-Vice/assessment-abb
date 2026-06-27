@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.uv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Node / web
+node_modules/
+apps/web/dist/
+apps/web/.vite/
+
+# Env & secrets
+.env
+.env.*
+!.env.example
+
+# Data artifacts
+corpus.json
+*.local.json
+eval/results/*
+!eval/results/.gitkeep
+
+# Models cache
+.model_cache/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

@@ -1,0 +1,47 @@
+[dependency-groups]
+dev = [
+    "ruff>=0.8",
+    "mypy>=1.13",
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+]
+
+[tool.uv.workspace]
+members = [
+    "packages/contracts",
+    "libs/rag",
+    "apps/ingestion",
+    "apps/chat",
+    "apps/analytics",
+    "apps/scraper",
+]
+
+[tool.uv.sources]
+abb-contracts = { workspace = true }
+abb-rag-core = { workspace = true }
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+extend-exclude = [".venv", "apps/web"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "ASYNC", "S", "Q", "COM", "SIM", "PTH"]
+ignore = ["COM812"]
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**" = ["S101"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unused_configs = true
+warn_return_any = true
+no_implicit_optional = true
+plugins = ["pydantic.mypy"]
+exclude = ["apps/web", "\\.venv"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["packages", "libs", "apps"]
+python_files = ["test_*.py"]
