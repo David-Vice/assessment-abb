@@ -4,13 +4,15 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from abb_contracts.enums import Language, Segment
 
+HTTP_URL_PATTERN = r"^https?://"
+
 
 class CorpusDocument(BaseModel):
     """A single scraped, cleaned page from the ABB website."""
 
     model_config = ConfigDict(extra="forbid")
 
-    url: str
+    url: str = Field(pattern=HTTP_URL_PATTERN)
     language: Language
     segment: Segment = Segment.OTHER
     title: str | None = None

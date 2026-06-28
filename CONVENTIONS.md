@@ -26,7 +26,7 @@ OpenAPI → generated Zod schemas on the frontend. Everything Dockerized.
 5. **Self-documenting, why-only comments.** Default to zero comments. A comment explains *why* (a constraint, trade-off, non-obvious decision) — never *what*. No planning-artifact refs (`# Decision 3`, `# per the plan`), no history breadcrumbs, no TODOs. Public functions/classes may carry a short docstring of intent.
 6. **One module = one domain; stereotype = one directory.** Cross-package imports go through `abb_contracts` / `abb_rag`. Never reach into another app's internals.
 7. **No `Any`, no silencing casts.** Use `typing.cast` only with justification. Let mypy enforce invariants.
-8. **SCREAMING_SNAKE_CASE enums** — `enum.Enum` (or `StrEnum`), member names *and* values.
+8. **SCREAMING_SNAKE_CASE enum members** — `enum.Enum`/`StrEnum`. Member *names* are UPPER_CASE. Member *values* are SCREAMING_SNAKE **except** where the value is an external/standardized identifier that has its own canonical form — then use the real value (e.g. ISO 639-1 language codes `"az"`/`"en"`/`"ru"`, lowercase status/state tokens that mirror DB `CHECK` values). The value is a wire/DB contract; it must match the external standard, not the style rule.
 9. **Reuse before you write.** Search the repo + check stdlib/a library before hand-rolling. Extend existing utils/services; don't clone.
 10. **Minimal, surgical changes (YAGNI).** No fields/abstractions "for later." Remove unused code.
 11. **Tests prove behavior.** A test fails if behavior regresses (assert real, non-default values). AAA comments only.

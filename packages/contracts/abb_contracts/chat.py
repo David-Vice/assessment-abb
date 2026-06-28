@@ -5,13 +5,15 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from abb_contracts.enums import AnswerStatus, Language, Segment
 
+HTTP_URL_PATTERN = r"^https?://"
+
 
 class Citation(BaseModel):
     """A source chunk backing an answer, deep-linkable to the ABB page."""
 
     model_config = ConfigDict(extra="forbid")
 
-    url: str
+    url: str = Field(pattern=HTTP_URL_PATTERN)
     title: str | None = None
     language: Language
     segment: Segment = Segment.OTHER

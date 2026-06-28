@@ -3,11 +3,17 @@ CREATE EXTENSION IF NOT EXISTS vector;
 CREATE EXTENSION IF NOT EXISTS unaccent;
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
+-- unaccent() is STABLE, but generated columns require IMMUTABLE expressions.
+-- Pin the dictionary explicitly so this wrapper is genuinely deterministic.
+CREATE OR REPLACE FUNCTION immutable_unaccent(text)
+    RETURNS text LANGUAGE sql IMMUTABLE PARALLEL SAFE STRICT
+    AS $$ SELECT unaccent('unaccent', $1) $$;
+
 CREATE TABLE IF NOT EXISTS documents (
     id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     url           TEXT NOT NULL UNIQUE,
-    language      TEXT NOT NULL,
-    segment       TEXT,
+    language      TEXT NOT NULL CHECK (language IN ('az', 'en', 'ru')),
+    segment       TEXT CHECK (segment IN ('individuals', 'business', 'about', 'other')),
     title         TEXT,
     content_hash  TEXT NOT NULL,
     fetched_at    TIMESTAMPTZ NOT NULL,
@@ -19,16 +25,17 @@ CREATE TABLE IF NOT EXISTS chunks (
     document_id   BIGINT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
     ordinal       INT NOT NULL,
     content       TEXT NOT NULL,
-    language      TEXT NOT NULL,
-    segment       TEXT,
+    language      TEXT NOT NULL CHECK (language IN ('az', 'en', 'ru')),
+    segment       TEXT CHECK (segment IN ('individuals', 'business', 'about', 'other')),
     -- halfvec (not vector): pgvector's HNSW/IVFFlat cap `vector` indexes at 2000
     -- dims; text-embedding-3-large is 3072. halfvec indexes up to 4000 dims at
     -- half the storage with negligible recall loss.
     embedding     HALFVEC(3072),
     -- Uniform 'simple' + unaccent config so AZ/RU/EN are treated equally
     -- (Postgres has no Azerbaijani stemmer; no language is privileged).
-    tsv           TSVECTOR GENERATED ALWAYS AS (to_tsvector('simple', unaccent(content))) STORED,
-    token_count   INT
+    tsv           TSVECTOR GENERATED ALWAYS AS (to_tsvector('simple', immutable_unaccent(content))) STORED,
+    token_count   INT,
+    UNIQUE (document_id, ordinal)
 );
 
 CREATE INDEX IF NOT EXISTS chunks_embedding_hnsw ON chunks USING hnsw (embedding halfvec_cosine_ops);
@@ -41,8 +48,9 @@ CREATE TABLE IF NOT EXISTS chat_logs (
     session_id        UUID NOT NULL,
     question          TEXT NOT NULL,
     answer            TEXT NOT NULL,
-    language          TEXT,
-    status            TEXT NOT NULL DEFAULT 'answered',
+    language          TEXT CHECK (language IN ('az', 'en', 'ru')),
+    status            TEXT NOT NULL DEFAULT 'answered'
+                          CHECK (status IN ('answered', 'declined_off_topic', 'error')),
     citations         JSONB NOT NULL DEFAULT '[]',
     retrieved_ids     BIGINT[] NOT NULL DEFAULT '{}',
     model             TEXT,

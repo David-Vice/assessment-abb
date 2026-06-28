@@ -64,6 +64,6 @@ networks: [abb_net]
 - **`docker-compose.yml`**: full topology above with healthchecks, depends_on, volumes, networks; optional `docker-compose.override.yml` for dev (hot reload, mounted source).
 - **Rate limiting**: shared middleware in a small lib, wired into chat + ingestion; env-configurable limits.
 - **Model caching**: build step to pre-fetch BGE reranker; mount `model_cache`.
-- **CI** (`infra/ci/ci.yml`): lint/type/test jobs with postgres+redis services; image build job; cache uv/pnpm.
+- **CI** (`.github/workflows/ci.yml`): lint/type/test jobs with postgres+redis services; image build job; cache uv/pnpm.
 - **Docs**: root README "Run with Docker" section; troubleshooting (ports, model download, OpenAI key).
 - **Verification**: fresh clone → `cp .env.example .env` (set OPENAI key) → `docker compose up` → full flow works end-to-end (upload→ingest→chat→dashboard); rate limit returns 429 past threshold; CI green on a test PR.

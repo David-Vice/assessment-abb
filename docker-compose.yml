@@ -90,6 +90,11 @@ services:
       - chat
       - ingestion
       - analytics
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:80/ || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
     networks: [abb_net]
 
 volumes:

@@ -44,4 +44,5 @@ exclude = ["apps/web", "\\.venv"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["packages", "libs", "apps"]
+norecursedirs = ["node_modules", ".venv", "apps/web", "dist", "build"]
 python_files = ["test_*.py"]

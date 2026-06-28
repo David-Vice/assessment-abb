@@ -108,5 +108,5 @@ Services defined but minimal: `postgres` (with init.sql mounted), `redis`, and p
 - **App stubs**: `apps/ingestion`, `apps/chat`, `apps/analytics` each a FastAPI app with `/health` + `Settings`; `apps/web` pnpm + Vite + TS + Tailwind config with a placeholder page.
 - **`infra/postgres/init.sql`**: schema above (corrected DDL).
 - **`docker-compose.yml`**: postgres + redis + four placeholder services with healthchecks and a shared network.
-- **CI** (`infra/ci/ci.yml`): jobs for `ruff check`, `mypy`, `pytest`, and web `eslint`/`tsc`.
+- **CI** (`.github/workflows/ci.yml`): jobs for `ruff check`, `mypy`, `pytest`, and web `eslint`/`tsc`. Must live under `.github/workflows/` for GitHub to discover it.
 - **Verification**: `docker compose up` healthy; `uv run ruff check`, `uv run mypy`, `uv run pytest` (empty) and web `pnpm lint`/`tsc` all green; psql shows extension + tables.

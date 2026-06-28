@@ -2,6 +2,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from abb_contracts.enums import Language, Segment
+
 
 class TimeBucket(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -43,8 +45,8 @@ class QualityStats(BaseModel):
 class DistributionStats(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    by_language: dict[str, int] = Field(default_factory=dict)
-    by_segment: dict[str, int] = Field(default_factory=dict)
+    by_language: dict[Language, int] = Field(default_factory=dict)
+    by_segment: dict[Segment, int] = Field(default_factory=dict)
 
 
 class AnalyticsSummary(BaseModel):

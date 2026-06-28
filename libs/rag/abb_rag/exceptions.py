@@ -14,7 +14,9 @@ class NotFoundError(AppError):
     code = "NOT_FOUND"
 
 
-class ValidationError(AppError):
+class InputValidationError(AppError):
+    """Distinct from pydantic.ValidationError to avoid name collisions."""
+
     status_code = 400
     code = "VALIDATION_ERROR"
 

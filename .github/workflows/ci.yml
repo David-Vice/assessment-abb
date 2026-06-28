@@ -13,9 +13,10 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v5
         with:
+          version: "0.9.14"
           python-version: "3.12"
       - name: Sync workspace
-        run: uv sync --all-packages
+        run: uv sync --all-packages --locked
       - name: Ruff (lint)
         run: uv run ruff check .
       - name: Ruff (format)
@@ -34,7 +35,7 @@ jobs:
           version: 10.30.1
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 22
           cache: pnpm
           cache-dependency-path: apps/web/pnpm-lock.yaml
       - name: Install

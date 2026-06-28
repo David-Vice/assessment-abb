@@ -1,5 +1,6 @@
 from functools import lru_cache
 
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -8,7 +9,9 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    openai_api_key: str = ""
+    # SecretStr prevents the key leaking into logs/tracebacks; emptiness is
+    # validated where the key is actually used (LLM/embeddings clients, P3).
+    openai_api_key: SecretStr = SecretStr("")
     chat_model: str = "gpt-4o"
     aux_model: str = "gpt-4o-mini"
     embedding_model: str = "text-embedding-3-large"
