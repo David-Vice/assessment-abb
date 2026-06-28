@@ -41,6 +41,11 @@ no_implicit_optional = true
 plugins = ["pydantic.mypy"]
 exclude = ["apps/web", "\\.venv"]
 
+# trafilatura ships no type stubs.
+[[tool.mypy.overrides]]
+module = ["trafilatura", "trafilatura.*"]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["packages", "libs", "apps"]
