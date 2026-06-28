@@ -39,8 +39,18 @@ ASSET_EXTENSIONS = (
 )
 
 
+# Sitemap sections that are archive noise for a customer Q&A corpus:
+# news articles and procurement/tender notices (thousands of low-value pages).
+NOISE_PATTERNS = ("xeberler", "satinalmalar")
+
+
 def _path_of(url: str) -> str:
     return urlparse(url).path
+
+
+def is_noise(url: str) -> bool:
+    path = _path_of(url).lower()
+    return any(pattern in path for pattern in NOISE_PATTERNS)
 
 
 def derive_language(url: str) -> Language:

@@ -121,6 +121,8 @@ source = { editable = "apps/scraper" }
 dependencies = [
     { name = "abb-contracts" },
     { name = "abb-rag-core" },
+    { name = "lxml" },
+    { name = "playwright" },
     { name = "pydantic-settings" },
     { name = "scrapy" },
     { name = "scrapy-playwright" },
@@ -131,6 +133,8 @@ dependencies = [
 requires-dist = [
     { name = "abb-contracts", editable = "packages/contracts" },
     { name = "abb-rag-core", editable = "libs/rag" },
+    { name = "lxml", specifier = ">=5.0" },
+    { name = "playwright", specifier = ">=1.40" },
     { name = "pydantic-settings", specifier = ">=2.5" },
     { name = "scrapy", specifier = ">=2.11" },
     { name = "scrapy-playwright", specifier = ">=0.0.43" },

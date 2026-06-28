@@ -1,6 +1,6 @@
 import pytest
 from abb_contracts import Language, Segment
-from abb_scraper.metadata import derive_language, derive_segment, is_crawlable_url
+from abb_scraper.metadata import derive_language, derive_segment, is_crawlable_url, is_noise
 
 
 @pytest.mark.parametrize(
@@ -45,3 +45,11 @@ def test_is_crawlable_rejects_assets_other_schemes_and_domains() -> None:
     assert not is_crawlable_url("https://evil-abb-bank.az/phish", "abb-bank.az")
     # Portal subdomains (login-walled apps) are out of scope for the info corpus.
     assert not is_crawlable_url("https://prime.abb-bank.az/login", "abb-bank.az")
+
+
+def test_is_noise_flags_news_and_procurement_only() -> None:
+    # Arrange & Act & Assert
+    assert is_noise("https://abb-bank.az/en/xeberler/some-article")
+    assert is_noise("https://abb-bank.az/haqqimizda/satinalmalar/bildirisler")
+    assert not is_noise("https://abb-bank.az/en/ferdi/kartlar/tam-visa")
+    assert not is_noise("https://abb-bank.az/en/haqqimizda/rekvizitler")

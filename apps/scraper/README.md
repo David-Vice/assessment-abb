@@ -39,7 +39,31 @@ uv run abb-scrape --out corpus.json --max-pages 40
 uv run abb-scrape --out corpus.json --playwright
 ```
 
-### Balanced multilingual corpus (recommended)
+### Full JS-rendered corpus (most complete) — `abb-render`
+
+ABB is a Next.js app: many pages (e.g. `haqqimizda/rekvizitler`, card detail tables)
+render their content **and** their listing links via JavaScript, which a plain HTTP
+crawl can't see. `abb-render` drives a **headless browser** over the sitemap URLs,
+so JS-rendered content (bank requisites, card specs, etc.) is captured. It excludes
+news/procurement noise (`xeberler`, `satinalmalar`) by default.
+
+```bash
+# one-time browser install
+uv run playwright install chromium
+
+# 3 parallel processes (per language), then merge into one balanced corpus
+uv run abb-render --only-language az --out corpus.az.json --concurrency 5 &
+uv run abb-render --only-language en --out corpus.en.json --concurrency 5 &
+uv run abb-render --only-language ru --out corpus.ru.json --concurrency 5 &
+wait
+uv run abb-scrape --merge corpus.az.json corpus.en.json corpus.ru.json --out corpus.json --sample
+```
+
+`abb-render` flags: `--only-language az|en|ru`, `--concurrency N` (browser pages),
+`--limit N` (testing). Extraction is hybrid: trafilatura for prose pages, lxml
+visible-text fallback for structured/table pages (so requisites/specs survive).
+
+### Balanced multilingual corpus (link-following, no browser)
 
 ABB is a Next.js i18n site whose sitemap is overwhelmingly Azerbaijani, and the
 language trees interlink unevenly — so a single crawl skews heavily by language.

@@ -21,9 +21,20 @@ Newest sections first. Keep entries short — *why* and *what we decided*, not n
   - everything else → `other` (e.g. `/xeberler` news)
 - **Host scope:** only the apex + `www` are crawled. Other subdomains are **excluded** — notably `prime.abb-bank.az` (the login/banking portal: not public info content, and its `robots.txt` returns 500).
 
+## JS-rendered content & the `abb-render` solution (Phase P2)
+
+- **Root cause behind missing pages/details: client-side rendering.** ABB (Next.js) renders both *detail content* (e.g. `haqqimizda/rekvizitler` requisites table: TIN, SWIFT `IBAZAZ2X`, correspondent account) and *listing links* (news, cards) via JavaScript. A no-JS HTTP crawl sees neither → the link-following corpus capped at ~344 navigable pages and missed detail tables.
+- **Two layers had to be fixed, not one:**
+  1. **Rendering** — Playwright executes the JS (proven: requisites numbers appear in the rendered DOM).
+  2. **Extraction** — trafilatura *discards* structured tables as boilerplate, so even rendered pages yielded only ~270 chars. Fix: hybrid extraction — trafilatura for prose, **lxml visible-text fallback** when trafilatura is thin (recovers tables/specs).
+- **`abb-render`** (new): async Playwright crawler over the **sitemap** URLs (the complete, language-balanced list), excluding noise, hybrid extraction. ~1.25 pages/s at concurrency 5; 3 parallel per-language processes → full corpus in ~8 min.
+- **Result:** corpus grew 344 → **1,309 docs** (az:573, en:324, ru:412), now including requisites (with numbers), card/business detail pages — in all three languages.
+- **No-`<main>` gotcha:** ABB pages have no `<main>` element; `inner_text('main')` hangs (30s locator timeout). Use rendered `page.content()` + lxml, not a `main` selector. Use `wait_until='domcontentloaded'` (not `networkidle`, which never settles here).
+- Two corpus build paths now exist: `abb-scrape` (fast HTTP link-following, ~344 nav pages) and `abb-render` (browser, ~1,300 full pages incl. JS detail). Current `corpus.json` is the `abb-render` build; the HTTP one is preserved as `corpus-v1.json`.
+
 ## Crawl/corpus findings (Phase P2)
 
-- **The sitemap is misleading.** `sitemap.xml` (and robots-declared sitemaps) are **~99% Azerbaijani** and dominated by `/haqqimizda` news/about URLs. A naive sitemap-driven crawl yields ~1,400 docs but **AZ-only** (EN/RU ≈ 1 each).
+- **The sitemap is balanced by language but ordered AZ-first.** `sitemap.xml` has **~6,641 URLs, roughly balanced**: az≈2,286, en≈2,169, ru≈2,186 — dominated by **about (`/haqqimizda` ≈3,414) + news (`/xeberler` ≈1,671) ≈ 76%**. Because AZ URLs are listed first, a **page-capped** unscoped crawl consumes the AZ portion before reaching EN/RU → the earlier "99% AZ" corpus (NOT because the sitemap is AZ-only; because of ordering + the page cap, compounded early on by the `NEXT_LOCALE` cookie pinning content to AZ).
 - **Languages interlink unevenly.** The AZ homepage has **zero** links to EN/RU versions. RU/EN pages *do* link richly within their own language (~109 links each), but those links live in **Next.js JSON/script blobs, not `<a href>` tags** → anchor-only extraction misses entire languages. Fix: also harvest quoted URLs from the raw HTML via regex.
 - **BFS starved the small languages.** Breadth-first (Scrapy `DEPTH_PRIORITY`) drowned EN/RU behind the AZ flood. **Depth-first** (Scrapy default) follows each language tree properly. → reverted to DFS.
 - **Cookies pin language.** `NEXT_LOCALE` cookie can make the server serve one language for later requests; we crawl cookie-less (`COOKIES_ENABLED=False`) so each URL serves its own language.
