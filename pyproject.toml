@@ -46,6 +46,11 @@ exclude = ["apps/web", "\\.venv"]
 module = ["trafilatura", "trafilatura.*", "lxml", "lxml.*", "py3langid", "py3langid.*"]
 ignore_missing_imports = true
 
+# sentence-transformers (the reranker) ships no type stubs.
+[[tool.mypy.overrides]]
+module = ["sentence_transformers", "sentence_transformers.*"]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["packages", "libs", "apps"]

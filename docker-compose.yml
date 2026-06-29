@@ -8,7 +8,8 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-abb}
       POSTGRES_DB: ${POSTGRES_DB:-abb_rag}
     ports:
-      - "5432:5432"
+      # Host port is configurable to avoid clashing with a native Postgres on 5432.
+      - "${POSTGRES_HOST_PORT:-5432}:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
       - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro

@@ -8,6 +8,11 @@ dependencies = [
     "pydantic>=2.9",
     "pydantic-settings>=2.5",
     "structlog>=24.4",
+    "sqlalchemy[asyncio]>=2.0",
+    "psycopg[binary]>=3.2",
+    "langchain-openai>=0.2",
+    "tiktoken>=0.8",
+    "sentence-transformers>=3.0",
 ]
 
 [build-system]

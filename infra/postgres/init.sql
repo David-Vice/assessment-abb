@@ -40,7 +40,9 @@ CREATE TABLE IF NOT EXISTS chunks (
 
 CREATE INDEX IF NOT EXISTS chunks_embedding_hnsw ON chunks USING hnsw (embedding halfvec_cosine_ops);
 CREATE INDEX IF NOT EXISTS chunks_tsv_gin        ON chunks USING gin (tsv);
-CREATE INDEX IF NOT EXISTS chunks_content_trgm   ON chunks USING gin (content gin_trgm_ops);
+-- Index the SAME expression the sparse query filters on (immutable_unaccent),
+-- so the `<%` word-similarity operator can actually use this trigram index.
+CREATE INDEX IF NOT EXISTS chunks_content_trgm   ON chunks USING gin (immutable_unaccent(content) gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS chunks_lang_idx       ON chunks (language);
 
 CREATE TABLE IF NOT EXISTS chat_logs (
