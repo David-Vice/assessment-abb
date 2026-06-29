@@ -54,6 +54,21 @@ _BLOCK_TAGS = frozenset(
     }
 )
 
+# Heading tags are promoted to markdown so downstream chunking stays structure-aware.
+_HEADING_TAGS = {
+    "h1": "# ",
+    "h2": "## ",
+    "h3": "### ",
+    "h4": "#### ",
+    "h5": "##### ",
+    "h6": "###### ",
+}
+# ABB serves a non-informative default <title> site-wide; fall back to the <h1>.
+_GENERIC_TITLES = {"abb", "abb bank"}
+# Drop exact-duplicate lines at least this long within a page (carousel/slider
+# re-renders), keeping the first; shorter repeats (prices, bullets) are left alone.
+_DEDUP_MIN_LINE = 40
+
 _TITLE_RE = re.compile(r"<title[^>]*>(.*?)</title>", re.IGNORECASE | re.DOTALL)
 _WHITESPACE_RE = re.compile(r"\s+")
 _BLANK_LINES_RE = re.compile(r"\n{3,}")
@@ -91,13 +106,19 @@ def extract_rendered(html: str) -> ExtractedContent | None:
 
 
 def clean_markdown(text: str) -> str:
-    """Drop the site-wide feedback widget and collapse runs of blank lines."""
+    """Strip the feedback widget, drop intra-page duplicate lines, tidy blanks."""
 
-    kept = [
-        line
-        for line in text.splitlines()
-        if not any(phrase in line for phrase in _FEEDBACK_BOILERPLATE)
-    ]
+    seen: set[str] = set()
+    kept: list[str] = []
+    for line in text.splitlines():
+        if any(phrase in line for phrase in _FEEDBACK_BOILERPLATE):
+            continue
+        stripped = line.strip()
+        if len(stripped) >= _DEDUP_MIN_LINE:
+            if stripped in seen:
+                continue
+            seen.add(stripped)
+        kept.append(line)
     return _BLANK_LINES_RE.sub("\n\n", "\n".join(kept)).strip()
 
 
@@ -118,22 +139,38 @@ def _visible_text(html: str) -> str:
         if parent is not None:
             parent.remove(element)
     # Inject separators around every element before text_content() flattens the
-    # tree: newlines between blocks, spaces between inline elements.
+    # tree: newlines (with a markdown prefix for headings) between blocks, spaces
+    # between inline elements.
     for element in document.iter():
         if not isinstance(element.tag, str):
             continue
-        separator = "\n" if element.tag in _BLOCK_TAGS else " "
+        is_block = element.tag in _BLOCK_TAGS
+        text_lead = "\n" + _HEADING_TAGS.get(element.tag, "") if is_block else " "
         if element.text:
-            element.text = separator + element.text
+            element.text = text_lead + element.text
         if element.tail:
-            element.tail = separator + element.tail
+            element.tail = ("\n" if is_block else " ") + element.tail
     lines = (" ".join(line.split()) for line in document.text_content().splitlines())
     return "\n".join(line for line in lines if line)
 
 
 def _extract_title(html: str) -> str | None:
     match = _TITLE_RE.search(html)
-    if match is None:
-        return None
-    title = _WHITESPACE_RE.sub(" ", unescape(match.group(1))).strip()
+    title = _WHITESPACE_RE.sub(" ", unescape(match.group(1))).strip() if match else ""
+    if not title or title.lower() in _GENERIC_TITLES:
+        heading = _first_heading(html)
+        if heading:
+            return heading
     return title or None
+
+
+def _first_heading(html: str) -> str | None:
+    try:
+        document = lxml_html.fromstring(html)
+    except ParserError:
+        return None
+    for node in document.xpath("//h1"):
+        text = _WHITESPACE_RE.sub(" ", node.text_content()).strip()
+        if text:
+            return text
+    return None

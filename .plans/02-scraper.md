@@ -25,8 +25,8 @@ ingestion-service input. Satisfies brief requirement 1.
    - Alternatives: Scrapy HTTP crawl (server-rendered assumption is false here → misses JS content/links — rejected, removed); Firecrawl (hosted, per-page cost, external dep — rejected for reproducibility).
 
 2. **trafilatura for content extraction, lxml visible-text fallback**
-   - Decision: Convert each rendered page's HTML to clean markdown via `trafilatura` (`favor_recall`); when it returns too little (it discards structured tables), fall back to lxml visible-text with site chrome stripped.
-   - Rationale: Best-in-class boilerplate removal for prose, while the fallback preserves the key/value tables (bank requisites, card specs) trafilatura drops — directly improves downstream chunk quality.
+   - Decision: Convert each rendered page's HTML to clean markdown via `trafilatura` (`favor_recall`); keep the lxml visible-text fallback (block + inline separation, `<h1>`–`<h6>` promoted to markdown headings) when it recovers substantially more (structured tables). The site-wide feedback widget is stripped, in-page duplicate sections (carousel re-renders) are collapsed, and `title` falls back to the page `<h1>` when the site serves its generic default `<title>`.
+   - Rationale: Best-in-class boilerplate removal for prose, while the fallback preserves the key/value tables (bank requisites, card specs) trafilatura drops and keeps heading structure for downstream chunking — directly improving chunk quality and citation labels.
 
 3. **Language reconciliation + segment classification**
    - Decision: Derive `language` from the URL prefix, then **reconcile against the detected content language** (py3langid, restricted to az/en/ru, high-confidence on sufficient text) — correcting untranslated `/en/`,`/ru/` pages that serve Azerbaijani text (and English `/privacy` pages under the AZ root). Derive `segment` from the URL: authoritative sections first (`biznes`/`sahibkar`/`korporativ`→business, `ferdi`→individuals, `haqqimizda`→about), then a retail-product keyword classifier for root-level SEO pages (`kredit`/`kart`/`əmanət`/`hesab`/…→individuals), else other. Business tokens take precedence over the retail keyword.
@@ -64,7 +64,7 @@ The full corpus is `{ "version": 1, "source": "abb-bank.az", "generated_at": ...
 - Polite by default: obeys `robots.txt` (`urllib.robotparser`) — **fails closed** on a robots server error (5xx) and honors `Crawl-delay`; identifies via a custom `USER_AGENT`; bounded concurrency (`--concurrency`, default 5) paces the crawl.
 - Source URLs come from `sitemap.xml`; non-page/asset URLs and noise are excluded: `xeberler` (news), `satinalmalar` (procurement), `kampaniyalar` (time-sensitive offers, often untranslated → stale + language-mislabeled).
 - Allowed host restricted to the canonical apex + `www` (`abb-bank.az`); login portals (`prime.*`/`online.*`) are out of scope.
-- **Fails loud:** a non-OK sitemap/robots fetch, an empty frontier, or a zero-document crawl raises (no silent empty corpus). Per-page render/extraction errors are contained (the page is skipped, the crawl continues).
+- **Fails loud:** a non-OK sitemap/robots fetch, an empty frontier, or a zero-document crawl raises (no silent empty corpus). Per-page render/extraction errors are contained (the page is skipped, the crawl continues); a thin first render gets one longer retry (slow client-side JS) before being dropped.
 - `--limit` caps the page count for bounded test runs (validated `≥1`); `--only-language` scopes a pass.
 - Rendering uses `wait_until="domcontentloaded"` + a fixed settle wait (ABB has no `<main>`; `networkidle` never settles here).
 

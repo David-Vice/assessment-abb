@@ -24,6 +24,8 @@ from abb_scraper.metadata import (
 SITEMAP_PATH = "/sitemap.xml"
 ROBOTS_PATH = "/robots.txt"
 PAGE_WAIT_MS = 3000
+# Extra settle for a single retry when the first extraction is thin (slow JS render).
+RETRY_WAIT_MS = 6000
 GOTO_TIMEOUT_MS = 30000
 DEFAULT_CONCURRENCY = 5
 _LOC_RE = re.compile(r"<loc>\s*(.*?)\s*</loc>", re.IGNORECASE | re.DOTALL)
@@ -109,6 +111,11 @@ async def _render_one(
         await page.goto(url, wait_until="domcontentloaded", timeout=GOTO_TIMEOUT_MS)
         await page.wait_for_timeout(PAGE_WAIT_MS)
         content = extract_rendered(await page.content())
+        if content is None:
+            # Slow client-side render (e.g. the ATM locator): one longer retry
+            # on the same page before dropping it.
+            await page.wait_for_timeout(RETRY_WAIT_MS)
+            content = extract_rendered(await page.content())
     except Exception as error:
         # One bad page (navigation, render, or extraction) must not abort the crawl.
         logger.warning("render_failed", url=url, error=str(error))

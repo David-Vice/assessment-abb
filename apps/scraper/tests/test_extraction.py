@@ -1,4 +1,5 @@
 from abb_scraper.extraction import (
+    _extract_title,
     _visible_text,
     clean_markdown,
     compute_content_hash,
@@ -113,6 +114,50 @@ def test_visible_text_handles_degenerate_html() -> None:
     # Arrange & Act & Assert — must not raise on empty/whitespace input.
     assert _visible_text("") == ""
     assert _visible_text("   ") == ""
+
+
+def test_visible_text_promotes_headings_to_markdown() -> None:
+    # Arrange
+    html = "<html><body><h2>Şərtlər</h2><div>Qısa mətn paraqrafı.</div></body></html>"
+
+    # Act
+    text = _visible_text(html)
+
+    # Assert
+    assert "## Şərtlər" in text
+
+
+def test_extract_title_falls_back_to_h1_when_generic() -> None:
+    # Arrange — ABB serves <title>ABB</title>; the real title is the <h1>.
+    html = "<html><head><title>ABB</title></head><body><h1>Mikro Kredit</h1><p>x</p></body></html>"
+
+    # Act & Assert
+    assert _extract_title(html) == "Mikro Kredit"
+
+
+def test_extract_title_keeps_specific_title_over_h1() -> None:
+    # Arrange & Act & Assert
+    html = "<html><head><title>Wire transfers | ABB</title></head><body><h1>X</h1></body></html>"
+    assert _extract_title(html) == "Wire transfers | ABB"
+
+
+def test_extract_title_keeps_generic_when_no_h1() -> None:
+    # Arrange & Act & Assert
+    html = "<html><head><title>ABB</title></head><body><p>no heading here</p></body></html>"
+    assert _extract_title(html) == "ABB"
+
+
+def test_clean_markdown_dedupes_repeated_long_lines() -> None:
+    # Arrange — a carousel re-renders the same long step several times.
+    line = "Bu uzun sətir karusel widgetində bir neçə dəfə təkrarlanır deyə"
+    raw = "\n".join([line, "qisa", line, "başqa qısa mətn", line])
+
+    # Act
+    cleaned = clean_markdown(raw)
+
+    # Assert
+    assert cleaned.count(line) == 1
+    assert "başqa qısa mətn" in cleaned
 
 
 def test_clean_markdown_strips_feedback_widget() -> None:

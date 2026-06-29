@@ -89,9 +89,10 @@ Validated against `abb_contracts.Corpus` / `CorpusDocument`.
 
 - **Polite by default:** obeys `robots.txt` (fails closed on a robots server error; honors `Crawl-delay`), identifies via a custom User-Agent, bounded concurrency paces the crawl.
 - **Coverage:** seeds from `sitemap.xml`; excludes assets, login portals, and noise (`xeberler` news, `satinalmalar` procurement, `kampaniyalar` time-sensitive/untranslated campaigns).
-- **Clean text:** trafilatura strips nav/ads/footers → markdown; the site-wide feedback widget is stripped; an lxml fallback (block + inline separation) recovers structured tables; pages with too little content are dropped.
+- **Clean text:** trafilatura strips nav/ads/footers → markdown; the site-wide feedback widget is stripped; an lxml fallback (block + inline separation, headings preserved as markdown) recovers structured tables; duplicate in-page sections (carousel re-renders) are collapsed; pages with too little content are dropped.
 - **Deduplicated:** identical content (SHA-256 over whitespace-normalized text) is dropped; output sorted by URL for stable diffs.
-- **Metadata:** `language` is reconciled from page content (py3langid) against the URL prefix; `segment` is classified from URL section + product keywords.
+- **Metadata:** `title` comes from `<title>`, falling back to the page `<h1>` when the site serves its generic default; `language` is reconciled from page content (py3langid) against the URL prefix; `segment` is classified from URL section + product keywords.
+- **Resilient:** a page that renders thin (slow client-side JS, e.g. the ATM locator) gets one longer retry before being dropped.
 - **Fails loud:** a failed sitemap/robots fetch or a zero-document crawl raises instead of writing an empty corpus.
 
 ## Tests
