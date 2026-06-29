@@ -35,7 +35,7 @@ scraper (CLI)  ──►  corpus.json  ──►  upload (browser/localforage)
 | Embeddings / LLM | OpenAI `text-embedding-3-large` · `gpt-4o` / `gpt-4o-mini` |
 | Rerank | local BGE cross-encoder (`bge-reranker-v2-m3`) |
 | Queue / cache | Redis + arq |
-| Scraper | Scrapy + scrapy-playwright + trafilatura |
+| Scraper | Playwright (headless) + trafilatura |
 | Frontend | Vite + React 19 + TS, Tailwind + shadcn/ui, recharts, localforage, TanStack Query |
 
 ## Quickstart
@@ -69,7 +69,7 @@ pnpm --dir apps/web install && pnpm --dir apps/web dev
 | `packages/contracts/` | Pydantic v2 boundary models (single source of truth) |
 | `libs/rag/` | Shared RAG core: chunking, embeddings, pgvector, retrieval, rerank |
 | `apps/ingestion/` · `apps/chat/` · `apps/analytics/` | FastAPI microservices |
-| `apps/scraper/` | Scrapy crawler → `corpus.json` |
+| `apps/scraper/` | Playwright crawler → `corpus.json` |
 | `apps/web/` | React SPA (upload, chat, dashboard) |
 | `infra/` | `postgres/init.sql`, CI workflows |
 | `eval/` | RAGAS evaluation harness + golden set |

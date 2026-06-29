@@ -46,7 +46,7 @@ traceability matrix. Each phase has its own plan file (`01`–`08`) carrying the
 | 3a | Ingestion execution | **Async via Redis-backed worker** (`arq`) | Embedding a full site is long-running; endpoint returns `job_id`, frontend polls progress. Redis also serves cache + rate-limit. |
 | 4 | Vector store | **Postgres 16 + pgvector** (HNSW + `tsvector`/GIN) | One datastore for vectors *and* chat logs; hybrid search in a single query; bank-grade ACID/audit. |
 | 5 | Reranking | **Local BGE cross-encoder** (`BAAI/bge-reranker-v2-m3`) via LangChain `ContextualCompressionRetriever` | Highest-ROI quality lever; self-hosted (content never leaves infra); OpenAI stays the only external vendor. |
-| 6 | Scraper | **Scrapy + scrapy-playwright + trafilatura** | Mature crawl framework (frontier, dedup, autothrottle, robots.txt); JS fallback only where needed; best-in-class extraction. |
+| 6 | Scraper | **Playwright (headless) + trafilatura (+ lxml fallback)** | ABB is a Next.js app rendering content *and* listing links via JS — a headless browser over `sitemap.xml` is required for full coverage (incl. requisites/card tables); trafilatura extracts, lxml recovers structured tables. (Scrapy HTTP was tried and removed: it only saw ~344 nav pages.) |
 | 7 | Embedding model | **`text-embedding-3-large`** | Top multilingual retrieval quality (AZ/EN/RU); cost trivial for one site. |
 | 7a | Chat models | **`gpt-4o`** primary + **`gpt-4o-mini`** auxiliary, **env-driven** | Flagship for answers, mini for query-rewrite/summary/guardrail; `gpt-5` is a one-line env switch. |
 | 8 | Feature scope | Baseline + **multilang AZ/RU/EN (all first-class), RAGAS eval, conversation memory, rate limiting, CI** | Maximizes impact per hour against scored criteria; finishable in a week. |
@@ -63,7 +63,7 @@ traceability matrix. Each phase has its own plan file (`01`–`08`) carrying the
 ```mermaid
 flowchart TB
   subgraph Scrape["Phase 2 — Scraper (CLI, run once)"]
-    SC[Scrapy + Playwright + trafilatura] --> CORPUS[(corpus.json<br/>url, language, segment,<br/>title, markdown, content_hash)]
+    SC[Playwright + trafilatura<br/>over sitemap.xml] --> CORPUS[(corpus.json<br/>url, language, segment,<br/>title, markdown, content_hash)]
   end
 
   subgraph Web["Phase 5/6 — Frontend (Vite React SPA)"]
@@ -203,7 +203,7 @@ at every point.
 
 | Risk | Mitigation |
 | ---- | ---------- |
-| ABB site blocks/throttles crawl | Scrapy autothrottle + robots.txt obedience; cache raw HTML; ship a committed `corpus.json` sample so the demo never depends on a live crawl. |
+| ABB site blocks/throttles crawl | robots.txt obedience + custom UA + bounded concurrency; ship a committed `corpus.sample.json` so the demo never depends on a live crawl. |
 | OpenAI key lacks `gpt-5`/model access | Env-driven models; default `gpt-4o`/`4o-mini`; verify access in P1. |
 | BGE reranker bloats image / slow on CPU | Pin a quantized/small reranker; lazy-load; document a toggle to skip rerank. |
 | One-week scope creep | Tiered scope (Decision 8); cloud/observability/auth explicitly deferred. |

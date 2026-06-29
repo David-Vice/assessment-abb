@@ -5,6 +5,27 @@ Newest sections first. Keep entries short — *why* and *what we decided*, not n
 
 ---
 
+## P2 consolidation — one scraper path (Playwright)
+
+The HTTP/Scrapy crawl (`abb-scrape` link-following) was **removed as redundant**:
+it only ever reached ~344 nav-only pages because ABB renders content *and* links
+via JS. The Playwright sitemap crawl is now the single, canonical path and keeps
+the brief-facing command name `abb-scrape`. Removed: `spiders/`, `pipelines.py`,
+`settings.py` (Scrapy), `extract_content`, and the `scrapy`/`scrapy-playwright`
+deps. Added `robots.txt` obedience to the render engine so politeness isn't lost
+with Scrapy. `corpus-v1.json` (the old HTTP build) was deleted from the repo.
+
+## Corpus state — verified clean & complete (current `corpus.json`)
+
+Built with `abb-render` (Playwright, 3 parallel per-language passes) + merge.
+
+- **Size:** 1,309 docs — az:573, en:324, ru:412. ~1.99M markdown chars, avg 1,520/doc.
+- **Cleanliness (all automated checks pass):** unique URLs 1,309 / unique hashes 1,309 (zero dups); 0 empty/short (<200 chars); 0 missing titles; 0 noise (`xeberler`/`satinalmalar`); 0 non-ABB URLs; only 1 page still containing hero-boilerplate, 0 boilerplate-only.
+- **Topic coverage (by URL keyword):** loans 225, cards 174, business 99, individuals 62, transfers 43, about 43, accounts 32, deposits 15, ATM 4, campaigns 390.
+- **Language/content quality (spot-checked):** EN pages in English, RU pages in Russian (incl. live loan-calculator values), `rekvizitler` SWIFT `IBAZAZ2X` + TIN present in all 3 languages. (Minor: some pages have a few untranslated UI button labels — reflects the source site, not our pipeline.)
+- **Note — campaigns are ~30% (390 docs):** legitimate but **time-sensitive** (offers expire → staleness risk for "current offers" Q&A). Kept for now; exclude later by adding `kampaniyalar` to `NOISE_PATTERNS` if stale answers become an issue.
+- **Note:** the earlier HTTP link-following build (344 nav-only docs, `corpus-v1.json`) was removed — superseded by this Playwright build and the now-single scraper path.
+
 ## ABB website (crawl target)
 
 - **What it is:** ABB = Azerbaijan's largest bank (ex–International Bank of Azerbaijan). Official site: `https://abb-bank.az/`.
@@ -30,7 +51,7 @@ Newest sections first. Keep entries short — *why* and *what we decided*, not n
 - **`abb-render`** (new): async Playwright crawler over the **sitemap** URLs (the complete, language-balanced list), excluding noise, hybrid extraction. ~1.25 pages/s at concurrency 5; 3 parallel per-language processes → full corpus in ~8 min.
 - **Result:** corpus grew 344 → **1,309 docs** (az:573, en:324, ru:412), now including requisites (with numbers), card/business detail pages — in all three languages.
 - **No-`<main>` gotcha:** ABB pages have no `<main>` element; `inner_text('main')` hangs (30s locator timeout). Use rendered `page.content()` + lxml, not a `main` selector. Use `wait_until='domcontentloaded'` (not `networkidle`, which never settles here).
-- Two corpus build paths now exist: `abb-scrape` (fast HTTP link-following, ~344 nav pages) and `abb-render` (browser, ~1,300 full pages incl. JS detail). Current `corpus.json` is the `abb-render` build; the HTTP one is preserved as `corpus-v1.json`.
+- *(Historical — superseded by the P2 consolidation entry at the top.)* Two build paths briefly co-existed: HTTP link-following (~344 nav pages) and the browser render (~1,300 pages incl. JS detail). The HTTP path was later removed; the browser render became the single `abb-scrape` command.
 
 ## Crawl/corpus findings (Phase P2)
 

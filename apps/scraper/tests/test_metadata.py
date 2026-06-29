@@ -20,9 +20,19 @@ def test_derive_language(url: str, expected: Language) -> None:
 @pytest.mark.parametrize(
     ("url", "expected"),
     [
+        # Authoritative URL sections.
         ("https://abb-bank.az/en/ferdi/cards", Segment.INDIVIDUALS),
         ("https://abb-bank.az/en/business/loans", Segment.BUSINESS),
         ("https://abb-bank.az/en/haqqimizda/missiya", Segment.ABOUT),
+        # Root-level SEO landing pages classified by retail-product keyword.
+        ("https://abb-bank.az/100-manat-kredit", Segment.INDIVIDUALS),
+        ("https://abb-bank.az/kredit-kartlari", Segment.INDIVIDUALS),
+        ("https://abb-bank.az/emanet", Segment.INDIVIDUALS),
+        # Business tokens take precedence over the retail "kredit" keyword.
+        ("https://abb-bank.az/sahibkar-krediti", Segment.BUSINESS),
+        ("https://abb-bank.az/ru/korporativ-kredit", Segment.BUSINESS),
+        # No section, no product keyword → other.
+        ("https://abb-bank.az/lotereya", Segment.OTHER),
         ("https://abb-bank.az/en/news", Segment.OTHER),
     ],
 )
@@ -47,9 +57,11 @@ def test_is_crawlable_rejects_assets_other_schemes_and_domains() -> None:
     assert not is_crawlable_url("https://prime.abb-bank.az/login", "abb-bank.az")
 
 
-def test_is_noise_flags_news_and_procurement_only() -> None:
+def test_is_noise_flags_news_procurement_and_campaigns() -> None:
     # Arrange & Act & Assert
     assert is_noise("https://abb-bank.az/en/xeberler/some-article")
     assert is_noise("https://abb-bank.az/haqqimizda/satinalmalar/bildirisler")
+    assert is_noise("https://abb-bank.az/kampaniyalar/yay-krediti")
+    assert is_noise("https://abb-bank.az/en/kampaniyalar/summer-loan")
     assert not is_noise("https://abb-bank.az/en/ferdi/kartlar/tam-visa")
     assert not is_noise("https://abb-bank.az/en/haqqimizda/rekvizitler")

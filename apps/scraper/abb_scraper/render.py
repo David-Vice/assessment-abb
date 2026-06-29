@@ -1,13 +1,13 @@
-import argparse
 import asyncio
 import re
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
+from urllib.robotparser import RobotFileParser
 
 from abb_contracts import CorpusDocument
-from abb_rag import configure_logging, get_logger
+from abb_rag import get_logger
 from playwright.async_api import async_playwright
 
 from abb_scraper.config import ScraperSettings
@@ -15,7 +15,8 @@ from abb_scraper.exporters import write_corpus
 from abb_scraper.extraction import compute_content_hash, extract_rendered
 from abb_scraper.metadata import derive_language, derive_segment, is_crawlable_url, is_noise
 
-SITEMAP_URL = "https://abb-bank.az/sitemap.xml"
+SITEMAP_PATH = "/sitemap.xml"
+ROBOTS_PATH = "/robots.txt"
 PAGE_WAIT_MS = 3000
 GOTO_TIMEOUT_MS = 30000
 DEFAULT_CONCURRENCY = 5
@@ -23,6 +24,27 @@ DEFAULT_CONCURRENCY = 5
 
 def parse_sitemap_locs(xml: str) -> list[str]:
     return [loc.strip() for loc in re.findall(r"<loc>(.*?)</loc>", xml) if not loc.endswith(".xml")]
+
+
+async def _allowed_by_robots(
+    context: Any, start_url: str, user_agent: str, urls: list[str], logger: Any
+) -> list[str]:
+    """Drop URLs disallowed by robots.txt. Politeness: we honor the bank's rules.
+
+    If robots.txt is missing/unreadable, we proceed (sitemap URLs are crawl-sanctioned).
+    """
+
+    robots_url = urljoin(start_url, ROBOTS_PATH)
+    try:
+        response = await context.request.get(robots_url, timeout=GOTO_TIMEOUT_MS)
+        if not response.ok:
+            return urls
+        parser = RobotFileParser()
+        parser.parse((await response.text()).splitlines())
+    except Exception as error:  # noqa: BLE001 - missing robots must not abort the crawl
+        logger.warning("robots_unavailable", url=robots_url, error=str(error))
+        return urls
+    return [url for url in urls if parser.can_fetch(user_agent, url)]
 
 
 def select_urls(urls: list[str], domain: str, language: str | None) -> list[str]:
@@ -82,8 +104,12 @@ async def render_corpus(
     async with async_playwright() as playwright:
         browser = await playwright.chromium.launch()
         context = await browser.new_context(user_agent=settings.user_agent)
-        sitemap = await context.request.get(SITEMAP_URL, timeout=GOTO_TIMEOUT_MS)
+        sitemap_url = urljoin(settings.start_url, SITEMAP_PATH)
+        sitemap = await context.request.get(sitemap_url, timeout=GOTO_TIMEOUT_MS)
         urls = select_urls(parse_sitemap_locs(await sitemap.text()), domain, language)
+        urls = await _allowed_by_robots(
+            context, settings.start_url, settings.user_agent, urls, logger
+        )
         if limit is not None:
             urls = urls[:limit]
         logger.info("render_start", language=language, urls=len(urls), out=str(out_path))
@@ -105,32 +131,3 @@ async def render_corpus(
     write_corpus(out_path, documents, domain)
     logger.info("render_written", path=str(out_path), documents=len(documents))
     return len(documents)
-
-
-def main() -> None:
-    args = _parse_args()
-    configure_logging()
-    asyncio.run(render_corpus(args.only_language, Path(args.out), args.concurrency, args.limit))
-
-
-def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        prog="abb-render",
-        description="Render ABB sitemap pages with a headless browser (captures JS-rendered "
-        "content like requisites/cards); excludes news/procurement noise.",
-    )
-    parser.add_argument("--out", default="corpus.json", help="Output path")
-    parser.add_argument(
-        "--only-language",
-        choices=["az", "en", "ru"],
-        default=None,
-        help="Render only one language tree (for parallel per-language runs)",
-    )
-    parser.add_argument(
-        "--concurrency",
-        type=int,
-        default=DEFAULT_CONCURRENCY,
-        help=f"Concurrent browser pages (default {DEFAULT_CONCURRENCY})",
-    )
-    parser.add_argument("--limit", type=int, default=None, help="Render at most N pages (testing)")
-    return parser.parse_args()

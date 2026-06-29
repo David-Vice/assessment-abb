@@ -1,4 +1,4 @@
-from abb_scraper.extraction import compute_content_hash, extract_content, extract_rendered
+from abb_scraper.extraction import clean_markdown, compute_content_hash, extract_rendered
 
 _RICH_HTML = """
 <!DOCTYPE html>
@@ -24,9 +24,9 @@ _RICH_HTML = """
 _EMPTY_HTML = "<html><head><title>x</title></head><body><nav>menu</nav></body></html>"
 
 
-def test_extract_content_returns_markdown_and_title() -> None:
+def test_extract_rendered_returns_markdown_and_title() -> None:
     # Arrange & Act
-    content = extract_content(_RICH_HTML)
+    content = extract_rendered(_RICH_HTML)
 
     # Assert
     assert content is not None
@@ -34,9 +34,9 @@ def test_extract_content_returns_markdown_and_title() -> None:
     assert content.title == "Wire transfers | ABB"
 
 
-def test_extract_content_drops_boilerplate_only_pages() -> None:
+def test_extract_rendered_drops_boilerplate_only_pages() -> None:
     # Arrange & Act & Assert
-    assert extract_content(_EMPTY_HTML) is None
+    assert extract_rendered(_EMPTY_HTML) is None
 
 
 _TABLE_HTML = """
@@ -69,6 +69,8 @@ def test_extract_rendered_recovers_structured_table_via_fallback() -> None:
     assert content is not None
     assert "IBAZAZ2X" in content.markdown
     assert "9900001881" in content.markdown
+    # Block-aware extraction: adjacent table rows must not fuse into a run-on line.
+    assert "IBAZAZ2XCorrespondent" not in content.markdown
 
 
 def test_compute_content_hash_is_deterministic_and_prefixed() -> None:
@@ -81,3 +83,30 @@ def test_compute_content_hash_is_deterministic_and_prefixed() -> None:
     assert first == second
     assert first.startswith("sha256:")
     assert first != other
+
+
+def test_compute_content_hash_ignores_whitespace_variation() -> None:
+    # Arrange & Act & Assert — whitespace-only variants must dedupe to one hash.
+    assert compute_content_hash("a b c") == compute_content_hash("a   b\n\nc")
+    assert compute_content_hash("a b c") == compute_content_hash("  a b c  ")
+    assert compute_content_hash("a b c") != compute_content_hash("a b d")
+
+
+def test_clean_markdown_strips_feedback_widget() -> None:
+    # Arrange — real content interleaved with the site-wide feedback widget.
+    raw = (
+        "ABB offers cards with cashback.\n"
+        "Səhifəni dəyərləndirin\n"
+        "Fikirlərinizi bizimlə bölüşün. Rəyləriniz dəyərlidir!\n"
+        "Rate the page\n"
+        "Apply online in minutes."
+    )
+
+    # Act
+    cleaned = clean_markdown(raw)
+
+    # Assert
+    assert "Səhifəni dəyərləndirin" not in cleaned
+    assert "Rate the page" not in cleaned
+    assert "ABB offers cards with cashback." in cleaned
+    assert "Apply online in minutes." in cleaned

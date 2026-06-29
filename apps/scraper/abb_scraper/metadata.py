@@ -39,9 +39,14 @@ ASSET_EXTENSIONS = (
 )
 
 
-# Sitemap sections that are archive noise for a customer Q&A corpus:
-# news articles and procurement/tender notices (thousands of low-value pages).
-NOISE_PATTERNS = ("xeberler", "satinalmalar")
+# Sitemap sections excluded as noise for a customer Q&A corpus:
+# - xeberler:     news articles (thousands, time-sensitive, low Q&A value)
+# - satinalmalar: procurement/tender notices under /haqqimizda (internal, not customer info)
+# - kampaniyalar: marketing campaigns — time-sensitive offers that expire (stale-answer
+#   risk for "current offers" questions) and frequently left untranslated (their /en/ and
+#   /ru/ URLs serve Azerbaijani text → language mislabeling). Excluded for the same
+#   reasons as news and the procurement "about" pages.
+NOISE_PATTERNS = ("xeberler", "satinalmalar", "kampaniyalar")
 
 
 def _path_of(url: str) -> str:
@@ -64,14 +69,38 @@ def derive_language(url: str) -> Language:
     return Language.AZ
 
 
+# Authoritative site sections (URL prefixes). Business is checked first: a
+# "biznes-krediti" page is a business product even though it also matches the
+# retail "kredit" keyword below.
+_BUSINESS_TOKENS = ("biznes", "business", "sahibkar", "korporativ")
+_INDIVIDUAL_TOKENS = ("ferdi", "individual")
+_ABOUT_TOKENS = ("haqqimizda", "about")
+# Retail product keywords for root-level SEO landing pages that lack a /ferdi/
+# section prefix (e.g. /100-manat-kredit, /kredit-kartlari, /emanet). Without
+# these, ~60% of pages collapse to `other`; these recover the consumer products.
+_RETAIL_KEYWORDS = (
+    "kredit", "credit", "kart", "card", "əmanət", "emanet", "depozit",
+    "deposit", "hesab", "account", "ipoteka", "mortgage", "pul-gonder", "transfer",
+)
+
+
 def derive_segment(url: str) -> Segment:
+    """Classify a page by audience. URL sections win; root SEO pages fall back to
+    retail-product keywords; everything else is `other`.
+
+    Note: segment is display/analytics metadata (citation badges, the analytics
+    segment-mix chart), not a retrieval filter — a miss never breaks answers.
+    """
+
     path = _path_of(url).lower()
-    if "ferdi" in path or "individual" in path:
-        return Segment.INDIVIDUALS
-    if "biznes" in path or "business" in path:
+    if any(token in path for token in _BUSINESS_TOKENS):
         return Segment.BUSINESS
-    if "haqqimizda" in path or "about" in path:
+    if any(token in path for token in _INDIVIDUAL_TOKENS):
+        return Segment.INDIVIDUALS
+    if any(token in path for token in _ABOUT_TOKENS):
         return Segment.ABOUT
+    if any(keyword in path for keyword in _RETAIL_KEYWORDS):
+        return Segment.INDIVIDUALS
     return Segment.OTHER
 
 

@@ -14,31 +14,35 @@ ingestion-service input. Satisfies brief requirement 1.
 > **Brief mapping (explicit):** the brief asks for *"a script to parse the ABB
 > website."* This is delivered as exactly that — **a single runnable command**,
 > `abb-scrape --out corpus.json` (documented front-and-center in the README).
-> Scrapy/Playwright/trafilatura are the internals of that one script, not extra
-> moving parts the reviewer must operate. One command in → one `corpus.json` out.
+> Playwright/trafilatura are the internals of that one script, not extra moving
+> parts the reviewer must operate. One command in → one `corpus.json` out.
 
 ## Decisions
 
-1. **Scrapy as the crawl engine, Playwright only as fallback**
-   - Decision: `scrapy` drives the crawl (frontier, dedup, retries, autothrottle, robots.txt). `scrapy-playwright` renders only pages flagged as JS-dependent.
-   - Rationale: ABB content is mostly server-rendered (confirmed in research) — HTTP for the ~90%, headless browser for the rest. Maximizes speed and politeness; avoids running a browser for every page.
-   - Alternatives: Firecrawl (hosted, per-page cost, external dep — rejected for reproducibility); httpx+BS4 (rebuilds crawl plumbing — rejected).
+1. **Headless-browser (Playwright) crawl over the sitemap**
+   - Decision: `abb-scrape` drives a headless Chromium (`playwright`) over the URLs declared in `sitemap.xml`, rendering each page before extraction.
+   - Rationale: ABB is a **Next.js app that renders both content *and* listing links via JavaScript** (confirmed in research). A plain HTTP crawl misses detail tables (e.g. `haqqimizda/rekvizitler`: TIN, SWIFT) and whole listing sections, capping coverage at ~344 nav-only pages. Rendering the sitemap captures the complete, language-balanced URL set with its JS content.
+   - Alternatives: Scrapy HTTP crawl (server-rendered assumption is false here → misses JS content/links — rejected, removed); Firecrawl (hosted, per-page cost, external dep — rejected for reproducibility).
 
-2. **trafilatura for content extraction**
-   - Decision: Convert each page's HTML to clean markdown/text via `trafilatura` (fallback to readability if extraction yields too little).
-   - Rationale: Best-in-class boilerplate removal (nav/ads/cookie banners) while preserving headings/lists — directly improves downstream chunk quality.
+2. **trafilatura for content extraction, lxml visible-text fallback**
+   - Decision: Convert each rendered page's HTML to clean markdown via `trafilatura` (`favor_recall`); when it returns too little (it discards structured tables), fall back to lxml visible-text with site chrome stripped.
+   - Rationale: Best-in-class boilerplate removal for prose, while the fallback preserves the key/value tables (bank requisites, card specs) trafilatura drops — directly improves downstream chunk quality.
 
-3. **Sitemap-seeded, language- and segment-aware crawl**
-   - Decision: Seed from `https://abb-bank.az/robots.txt` → `sitemap.xml`; if absent, BFS from the three language roots (`/` AZ, `/en/`, `/ru/`). Derive `language` from URL prefix and `segment` from path (`ferdi`/individuals, `business`, `haqqimizda`/about).
-   - Rationale: Sitemaps give canonical coverage; URL-derived metadata powers multilingual + filtered retrieval later.
+3. **Language- and segment-aware, derived from the URL**
+   - Decision: Derive `language` from the URL prefix (`/en/`→en, `/ru/`→ru, else az). Derive `segment` from the URL: authoritative sections first (`biznes`/`sahibkar`/`korporativ`→business, `ferdi`→individuals, `haqqimizda`→about), then a retail-product keyword classifier for root-level SEO pages (`kredit`/`kart`/`əmanət`/`hesab`/…→individuals), else other. Business tokens take precedence over the retail keyword (a "biznes-krediti" page is business).
+   - Rationale: URL-derived metadata powers multilingual retrieval and the analytics segment-mix chart. The keyword classifier cuts the `other` bucket from ~60% to ~11% (root SEO landing pages like `/100-manat-kredit` are now classified). Segment is display/analytics metadata, **not** a retrieval filter.
 
 4. **Deterministic, deduplicated output keyed by content hash**
-   - Decision: Each record carries a SHA-256 `content_hash`; identical content across URLs is dropped. Output sorted by URL for stable diffs.
-   - Rationale: Stable, reviewable artifact; enables incremental re-crawl and prevents duplicate chunks.
+   - Decision: Each record carries a SHA-256 `content_hash` computed over **whitespace-normalized** text, so spacing-only variants collapse to one document. Identical content across URLs is dropped; output sorted by URL for stable diffs.
+   - Rationale: Stable, reviewable artifact; enables incremental re-crawl and prevents duplicate chunks (including trivial whitespace twins).
 
-5. **Committed sample corpus for demo safety**
-   - Decision: Commit a trimmed `corpus.sample.json` so the demo never depends on a live crawl.
-   - Rationale: Risk mitigation — bank site could throttle/block during the demo.
+5. **Balanced multilingual corpus via per-language passes + merge**
+   - Decision: The sitemap is balanced by language but ordered AZ-first; crawl each language tree separately (`--only-language`) then `--merge` (dedup by hash) into one balanced corpus.
+   - Rationale: A single capped crawl skews AZ. Per-language passes guarantee AZ/EN/RU coverage.
+
+6. **Committed sample corpus for demo safety**
+   - Decision: Commit a trimmed `corpus.sample.json` (round-robin across language × segment) so the demo never depends on a live crawl and shows all languages/segments.
+   - Rationale: Risk mitigation — the bank site could throttle/block during the demo; the full `corpus.json` is gitignored (rebuildable artifact).
 
 ## Plan
 
@@ -57,23 +61,33 @@ ingestion-service input. Satisfies brief requirement 1.
 The full corpus is `{ "version": 1, "source": "abb-bank.az", "generated_at": ..., "documents": [ ... ] }`.
 
 ### Crawl configuration
-- `ROBOTSTXT_OBEY = True`, `AUTOTHROTTLE_ENABLED = True`, conservative `CONCURRENT_REQUESTS_PER_DOMAIN`, custom `USER_AGENT` identifying the bot.
-- Allowed domain restricted to `abb-bank.az`; skip binary/asset URLs (pdf/img handled separately or skipped for v1 — text-only per brief).
-- Playwright enabled per-request via `meta={"playwright": True}` only when a heuristic (empty `trafilatura` result on raw HTML) triggers a re-fetch.
-- Page cap + depth cap from env (`CRAWL_MAX_PAGES`, `CRAWL_MAX_DEPTH`) for bounded runs.
+- Polite by default: obeys `robots.txt` (`urllib.robotparser`), identifies via a custom `USER_AGENT`, bounded concurrency (`--concurrency`, default 5) paces the crawl.
+- Source URLs come from `sitemap.xml`; non-page/asset URLs and noise are excluded: `xeberler` (news), `satinalmalar` (procurement), `kampaniyalar` (time-sensitive offers, often untranslated → stale + language-mislabeled).
+- Allowed host restricted to the apex + `www` (`abb-bank.az`); login portals (`prime.*`/`online.*`) are out of scope.
+- `--limit` caps the page count for bounded test runs; `--only-language` scopes a pass.
+- Rendering uses `wait_until="domcontentloaded"` + a fixed settle wait (ABB has no `<main>`; `networkidle` never settles here).
 
 ### Pipeline
-1. Spider yields raw HTML + URL metadata.
-2. Item pipeline: `trafilatura` extract → markdown; compute `content_hash`; derive `language`/`segment`; drop empties + dupes.
-3. Exporter writes a single `corpus.json` (and updates `corpus.sample.json` when `--sample`).
+1. Fetch `sitemap.xml`; select crawlable, non-noise, in-scope URLs; drop robots-disallowed.
+2. Render each URL in headless Chromium; extract via trafilatura → markdown (lxml fallback for tables).
+3. Derive `language`/`segment`; compute `content_hash`; drop empties + dupes.
+4. Exporter writes a single `corpus.json` envelope (sorted by URL); `--sample` writes `corpus.sample.json`; `--merge` fuses per-language corpora.
 
 ## Breakdown
 
-- **`apps/scraper/`**: Scrapy project (`scrapy.cfg`, `settings.py`, `pyproject.toml` deps: scrapy, scrapy-playwright, trafilatura, contracts).
-- **`spiders/abb.py`**: `SitemapSpider`/`CrawlSpider` hybrid — sitemap seed with BFS fallback; per-URL language/segment derivation; Playwright fallback heuristic.
-- **`pipelines.py`**: extraction (trafilatura), hashing, dedup, validation against `CorpusDocument`.
-- **`exporters.py`**: write `corpus.json` envelope; `--sample` mode.
-- **`run.py` / CLI**: `uv run abb-scrape --out corpus.json [--max-pages N] [--sample]`.
-- **Tests**: unit tests for language/segment derivation + extraction on saved HTML fixtures (offline, no network).
-- **Docs**: `apps/scraper/README.md` — how to run, flags, output schema, politeness notes.
-- **Verification**: run against a small `--max-pages` budget; confirm AZ/EN/RU + all segments represented; schema-valid; dedup working; sample corpus committed.
+- **`apps/scraper/`**: package (`pyproject.toml` deps: playwright, trafilatura, lxml, contracts, rag-core). No Scrapy.
+- **`render.py`**: async Playwright engine — sitemap fetch, robots filter, per-page render + extract, dedup, write.
+- **`extraction.py`**: `extract_rendered` (trafilatura + lxml visible-text fallback); `compute_content_hash`.
+- **`metadata.py`**: URL → language/segment derivation; `is_crawlable_url`; `is_noise`.
+- **`exporters.py`**: write `corpus.json` envelope; `load_corpus`; `merge_corpora` (dedup by hash).
+- **`sample.py`**: `select_sample` (round-robin across language × segment).
+- **`cli.py` / CLI**: `uv run abb-scrape --out corpus.json [--only-language az|en|ru] [--concurrency N] [--limit N] [--sample] [--merge A B C]`.
+- **Tests**: unit tests for language/segment derivation, extraction (prose + table fallback), hashing, sampling, export/merge (offline, no network).
+- **Docs**: `apps/scraper/README.md` — how to run, flags, output schema, politeness notes, known limitations.
+- **Verification**: run against a small `--limit` budget; confirm AZ/EN/RU + segments represented; schema-valid; dedup working; sample corpus committed.
+
+## Known limitations / future enhancements
+
+- **Semantic near-duplicates.** Whitespace-variant duplicates are now collapsed (normalized hashing); *semantically* near-identical pages (same disclosure reworded) are not — deferred to paragraph-level dedup at chunking (P3).
+- **Segment heuristic.** A URL keyword classifier handles root-level SEO landing pages (`/100-manat-kredit`→individuals), cutting `other` to ~11%; the residual `other` is pages with no section or product keyword. A content/topic model could refine further. Note: segment is display/analytics metadata (citation badges, the analytics segment-mix chart), **not** a retrieval filter, so a miss never affects answer quality.
+- **Language by URL, not content.** Derived from the URL prefix. The main offender (untranslated campaign pages) is now excluded as noise; a residual <1% of pages may still carry source-language text. Content-based language detection is the further production fix.

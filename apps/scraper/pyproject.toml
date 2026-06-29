@@ -1,14 +1,12 @@
 [project]
 name = "abb-scraper"
 version = "0.1.0"
-description = "ABB website crawler producing corpus.json (Scrapy + Playwright + trafilatura)"
+description = "ABB website crawler producing corpus.json (Playwright + trafilatura)"
 requires-python = ">=3.12"
 dependencies = [
     "abb-contracts",
     "abb-rag-core",
     "pydantic-settings>=2.5",
-    "scrapy>=2.11",
-    "scrapy-playwright>=0.0.43",
     "trafilatura>=1.12",
     "lxml>=5.0",
     "playwright>=1.40",
@@ -16,7 +14,6 @@ dependencies = [
 
 [project.scripts]
 abb-scrape = "abb_scraper.cli:main"
-abb-render = "abb_scraper.render:main"
 
 [build-system]
 requires = ["hatchling"]

@@ -4,11 +4,11 @@ from abb_contracts import CorpusDocument, Language, Segment
 from abb_scraper.sample import select_sample
 
 
-def _doc(url: str, language: Language) -> CorpusDocument:
+def _doc(url: str, language: Language, segment: Segment = Segment.OTHER) -> CorpusDocument:
     return CorpusDocument(
         url=url,
         language=language,
-        segment=Segment.OTHER,
+        segment=segment,
         markdown="content body that is long enough",
         content_hash=f"sha256:{url}",
         fetched_at=datetime.now(UTC),
@@ -37,6 +37,24 @@ def test_select_sample_round_robins_languages_for_diversity() -> None:
 
     # Assert
     assert {doc.language for doc in sample} == {Language.AZ, Language.EN, Language.RU}
+
+
+def test_select_sample_diversifies_segments() -> None:
+    # Arrange — many 'other' AZ pages, few segment-tagged ones; a language-only
+    # round-robin would pick all 'other'. The sample must surface segments too.
+    documents = [_doc(f"https://abb-bank.az/o{i}", Language.AZ, Segment.OTHER) for i in range(8)]
+    documents.append(_doc("https://abb-bank.az/ferdi/x", Language.AZ, Segment.INDIVIDUALS))
+    documents.append(_doc("https://abb-bank.az/biznes/x", Language.AZ, Segment.BUSINESS))
+
+    # Act
+    sample = select_sample(documents, 3)
+
+    # Assert
+    assert {doc.segment for doc in sample} == {
+        Segment.OTHER,
+        Segment.INDIVIDUALS,
+        Segment.BUSINESS,
+    }
 
 
 def test_select_sample_zero_limit_returns_empty() -> None:
