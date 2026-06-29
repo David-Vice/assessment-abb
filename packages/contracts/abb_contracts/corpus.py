@@ -5,6 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from abb_contracts.enums import Language, Segment
 
 HTTP_URL_PATTERN = r"^https?://"
+CONTENT_HASH_PATTERN = r"^sha256:"
 
 
 class CorpusDocument(BaseModel):
@@ -16,8 +17,8 @@ class CorpusDocument(BaseModel):
     language: Language
     segment: Segment = Segment.OTHER
     title: str | None = None
-    markdown: str
-    content_hash: str
+    markdown: str = Field(min_length=1)
+    content_hash: str = Field(pattern=CONTENT_HASH_PATTERN)
     fetched_at: datetime
 
 

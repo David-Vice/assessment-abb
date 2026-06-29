@@ -28,9 +28,9 @@ ingestion-service input. Satisfies brief requirement 1.
    - Decision: Convert each rendered page's HTML to clean markdown via `trafilatura` (`favor_recall`); when it returns too little (it discards structured tables), fall back to lxml visible-text with site chrome stripped.
    - Rationale: Best-in-class boilerplate removal for prose, while the fallback preserves the key/value tables (bank requisites, card specs) trafilatura drops — directly improves downstream chunk quality.
 
-3. **Language- and segment-aware, derived from the URL**
-   - Decision: Derive `language` from the URL prefix (`/en/`→en, `/ru/`→ru, else az). Derive `segment` from the URL: authoritative sections first (`biznes`/`sahibkar`/`korporativ`→business, `ferdi`→individuals, `haqqimizda`→about), then a retail-product keyword classifier for root-level SEO pages (`kredit`/`kart`/`əmanət`/`hesab`/…→individuals), else other. Business tokens take precedence over the retail keyword (a "biznes-krediti" page is business).
-   - Rationale: URL-derived metadata powers multilingual retrieval and the analytics segment-mix chart. The keyword classifier cuts the `other` bucket from ~60% to ~11% (root SEO landing pages like `/100-manat-kredit` are now classified). Segment is display/analytics metadata, **not** a retrieval filter.
+3. **Language reconciliation + segment classification**
+   - Decision: Derive `language` from the URL prefix, then **reconcile against the detected content language** (py3langid, restricted to az/en/ru, high-confidence on sufficient text) — correcting untranslated `/en/`,`/ru/` pages that serve Azerbaijani text (and English `/privacy` pages under the AZ root). Derive `segment` from the URL: authoritative sections first (`biznes`/`sahibkar`/`korporativ`→business, `ferdi`→individuals, `haqqimizda`→about), then a retail-product keyword classifier for root-level SEO pages (`kredit`/`kart`/`əmanət`/`hesab`/…→individuals), else other. Business tokens take precedence over the retail keyword.
+   - Rationale: content-reconciled language keeps AZ/RU/EN genuinely equal — URL prefixes lie on untranslated pages, so trusting them alone pollutes the per-language subsets. The keyword classifier cuts the `other` bucket from ~60% to ~11%. Segment is display/analytics metadata, **not** a retrieval filter.
 
 4. **Deterministic, deduplicated output keyed by content hash**
    - Decision: Each record carries a SHA-256 `content_hash` computed over **whitespace-normalized** text, so spacing-only variants collapse to one document. Identical content across URLs is dropped; output sorted by URL for stable diffs.
@@ -61,10 +61,11 @@ ingestion-service input. Satisfies brief requirement 1.
 The full corpus is `{ "version": 1, "source": "abb-bank.az", "generated_at": ..., "documents": [ ... ] }`.
 
 ### Crawl configuration
-- Polite by default: obeys `robots.txt` (`urllib.robotparser`), identifies via a custom `USER_AGENT`, bounded concurrency (`--concurrency`, default 5) paces the crawl.
+- Polite by default: obeys `robots.txt` (`urllib.robotparser`) — **fails closed** on a robots server error (5xx) and honors `Crawl-delay`; identifies via a custom `USER_AGENT`; bounded concurrency (`--concurrency`, default 5) paces the crawl.
 - Source URLs come from `sitemap.xml`; non-page/asset URLs and noise are excluded: `xeberler` (news), `satinalmalar` (procurement), `kampaniyalar` (time-sensitive offers, often untranslated → stale + language-mislabeled).
-- Allowed host restricted to the apex + `www` (`abb-bank.az`); login portals (`prime.*`/`online.*`) are out of scope.
-- `--limit` caps the page count for bounded test runs; `--only-language` scopes a pass.
+- Allowed host restricted to the canonical apex + `www` (`abb-bank.az`); login portals (`prime.*`/`online.*`) are out of scope.
+- **Fails loud:** a non-OK sitemap/robots fetch, an empty frontier, or a zero-document crawl raises (no silent empty corpus). Per-page render/extraction errors are contained (the page is skipped, the crawl continues).
+- `--limit` caps the page count for bounded test runs (validated `≥1`); `--only-language` scopes a pass.
 - Rendering uses `wait_until="domcontentloaded"` + a fixed settle wait (ABB has no `<main>`; `networkidle` never settles here).
 
 ### Pipeline
@@ -90,4 +91,5 @@ The full corpus is `{ "version": 1, "source": "abb-bank.az", "generated_at": ...
 
 - **Semantic near-duplicates.** Whitespace-variant duplicates are now collapsed (normalized hashing); *semantically* near-identical pages (same disclosure reworded) are not — deferred to paragraph-level dedup at chunking (P3).
 - **Segment heuristic.** A URL keyword classifier handles root-level SEO landing pages (`/100-manat-kredit`→individuals), cutting `other` to ~11%; the residual `other` is pages with no section or product keyword. A content/topic model could refine further. Note: segment is display/analytics metadata (citation badges, the analytics segment-mix chart), **not** a retrieval filter, so a miss never affects answer quality.
-- **Language by URL, not content.** Derived from the URL prefix. The main offender (untranslated campaign pages) is now excluded as noise; a residual <1% of pages may still carry source-language text. Content-based language detection is the further production fix.
+- **Language detection edge cases.** Language is reconciled from page content (py3langid, restricted to az/en/ru) against the URL prefix, correcting untranslated `/en/`,`/ru/` pages. Very short or heavily code-mixed pages may still keep the URL language.
+- **Inline value fusion.** Block-level run-on is fixed; a few calculator/spec widgets render label and value as adjacent inline spans with no whitespace in the source DOM, which can still fuse (e.g. `ödəniş888.49`). A safe universal fix is constrained by legitimate alphanumerics (postal/SWIFT codes).

@@ -1,4 +1,9 @@
-from abb_scraper.extraction import clean_markdown, compute_content_hash, extract_rendered
+from abb_scraper.extraction import (
+    _visible_text,
+    clean_markdown,
+    compute_content_hash,
+    extract_rendered,
+)
 
 _RICH_HTML = """
 <!DOCTYPE html>
@@ -90,6 +95,24 @@ def test_compute_content_hash_ignores_whitespace_variation() -> None:
     assert compute_content_hash("a b c") == compute_content_hash("a   b\n\nc")
     assert compute_content_hash("a b c") == compute_content_hash("  a b c  ")
     assert compute_content_hash("a b c") != compute_content_hash("a b d")
+
+
+def test_visible_text_separates_inline_elements() -> None:
+    # Arrange — adjacent inline spans with no whitespace (loan-calculator widget).
+    html = "<html><body><div><span>Aylıq ödəniş</span><span>888.49 AZN</span></div></body></html>"
+
+    # Act
+    text = _visible_text(html)
+
+    # Assert — label and value must not fuse.
+    assert "ödəniş888" not in text
+    assert "888.49" in text
+
+
+def test_visible_text_handles_degenerate_html() -> None:
+    # Arrange & Act & Assert — must not raise on empty/whitespace input.
+    assert _visible_text("") == ""
+    assert _visible_text("   ") == ""
 
 
 def test_clean_markdown_strips_feedback_widget() -> None:

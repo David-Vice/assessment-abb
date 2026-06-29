@@ -1,6 +1,13 @@
 import pytest
 from abb_contracts import Language, Segment
-from abb_scraper.metadata import derive_language, derive_segment, is_crawlable_url, is_noise
+from abb_scraper.metadata import (
+    derive_language,
+    derive_segment,
+    is_crawlable_url,
+    is_noise,
+    reconcile_language,
+    site_domain,
+)
 
 
 @pytest.mark.parametrize(
@@ -65,3 +72,37 @@ def test_is_noise_flags_news_procurement_and_campaigns() -> None:
     assert is_noise("https://abb-bank.az/en/kampaniyalar/summer-loan")
     assert not is_noise("https://abb-bank.az/en/ferdi/kartlar/tam-visa")
     assert not is_noise("https://abb-bank.az/en/haqqimizda/rekvizitler")
+
+
+def test_site_domain_strips_www_and_lowercases() -> None:
+    # Arrange & Act & Assert
+    assert site_domain("https://WWW.abb-bank.az/en/ferdi") == "abb-bank.az"
+    assert site_domain("https://abb-bank.az/") == "abb-bank.az"
+
+
+_AZ_BODY = (
+    "ABB Bank müştərilərinə nağd kredit, kart və əmanət xidmətləri təklif edir. "
+    "Faiz dərəcəsi əlverişlidir və kredit üçün müraciət tam onlayn həyata keçirilir. "
+    "Əmanət hesabı açaraq aylıq gəlir əldə edə bilərsiniz. Biznes müştəriləri üçün "
+    "xüsusi kredit şərtləri və sahibkarlara dəstək proqramları mövcuddur."
+)
+_EN_BODY = (
+    "ABB Bank offers cash loans, cards and deposit services to its individual and "
+    "business customers with competitive interest rates. The application process is "
+    "fully online and fast, and you can open a savings account to earn monthly income."
+)
+
+
+def test_reconcile_language_overrides_url_when_content_disagrees() -> None:
+    # Arrange & Act & Assert — URL says EN but the body is Azerbaijani.
+    assert reconcile_language(_AZ_BODY, Language.EN) == Language.AZ
+
+
+def test_reconcile_language_keeps_url_when_content_agrees() -> None:
+    # Arrange & Act & Assert
+    assert reconcile_language(_EN_BODY, Language.EN) == Language.EN
+
+
+def test_reconcile_language_keeps_url_for_short_text() -> None:
+    # Arrange & Act & Assert — too little text to detect reliably.
+    assert reconcile_language("Qısa mətn.", Language.EN) == Language.EN

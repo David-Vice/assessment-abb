@@ -41,9 +41,9 @@ no_implicit_optional = true
 plugins = ["pydantic.mypy"]
 exclude = ["apps/web", "\\.venv"]
 
-# trafilatura and lxml ship no type stubs.
+# trafilatura, lxml, and py3langid ship no type stubs.
 [[tool.mypy.overrides]]
-module = ["trafilatura", "trafilatura.*", "lxml", "lxml.*"]
+module = ["trafilatura", "trafilatura.*", "lxml", "lxml.*", "py3langid", "py3langid.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

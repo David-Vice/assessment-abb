@@ -1,16 +1,16 @@
 import argparse
 import asyncio
 from pathlib import Path
-from typing import Any
 
 from abb_rag import configure_logging, get_logger
+from structlog.typing import FilteringBoundLogger
 
+from abb_scraper.config import ScraperSettings
 from abb_scraper.exporters import load_corpus, merge_corpora, write_corpus
 from abb_scraper.render import DEFAULT_CONCURRENCY, render_corpus
 from abb_scraper.sample import select_sample
 
 DEFAULT_SAMPLE_SIZE = 25
-DEFAULT_SOURCE = "abb-bank.az"
 
 
 def main() -> None:
@@ -43,16 +43,16 @@ def main() -> None:
         _write_sample(output_path, args.sample_size, logger)
 
 
-def _run_merge(args: argparse.Namespace, logger: Any) -> None:
+def _run_merge(args: argparse.Namespace, logger: FilteringBoundLogger) -> None:
     output_path = Path(args.out)
-    inputs = [Path(p) for p in args.merge]
-    count = merge_corpora(inputs, output_path, source=DEFAULT_SOURCE)
+    inputs = [Path(path) for path in args.merge]
+    count = merge_corpora(inputs, output_path, source=ScraperSettings().domain)
     logger.info("merge_written", path=str(output_path), documents=count)
     if args.sample:
         _write_sample(output_path, args.sample_size, logger)
 
 
-def _write_sample(corpus_path: Path, sample_size: int, logger: Any) -> None:
+def _write_sample(corpus_path: Path, sample_size: int, logger: FilteringBoundLogger) -> None:
     corpus = load_corpus(corpus_path)
     sampled = select_sample(corpus.documents, sample_size)
     sample_path = corpus_path.with_name("corpus.sample.json")
@@ -60,12 +60,19 @@ def _write_sample(corpus_path: Path, sample_size: int, logger: Any) -> None:
     logger.info("sample_written", path=str(sample_path), documents=len(sampled))
 
 
+def _positive_int(value: str) -> int:
+    number = int(value)
+    if number < 1:
+        raise argparse.ArgumentTypeError(f"must be >= 1, got {number}")
+    return number
+
+
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="abb-scrape",
         description="Crawl the ABB website into a corpus.json for the RAG pipeline. "
         "Drives a headless browser over the sitemap (captures JS-rendered content "
-        "like requisites/card tables) and excludes news/procurement noise.",
+        "like requisites/card tables) and excludes news/procurement/campaign noise.",
     )
     parser.add_argument("--out", default="corpus.json", help="Output path (default: corpus.json)")
     parser.add_argument(
@@ -76,11 +83,13 @@ def _parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--concurrency",
-        type=int,
+        type=_positive_int,
         default=DEFAULT_CONCURRENCY,
         help=f"Concurrent browser pages (default: {DEFAULT_CONCURRENCY})",
     )
-    parser.add_argument("--limit", type=int, default=None, help="Crawl at most N pages (testing)")
+    parser.add_argument(
+        "--limit", type=_positive_int, default=None, help="Crawl at most N pages (testing)"
+    )
     parser.add_argument(
         "--sample",
         action="store_true",
@@ -88,7 +97,7 @@ def _parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--sample-size",
-        type=int,
+        type=_positive_int,
         default=DEFAULT_SAMPLE_SIZE,
         help=f"Documents in the sample (default: {DEFAULT_SAMPLE_SIZE})",
     )

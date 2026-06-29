@@ -1,6 +1,11 @@
+from functools import lru_cache
+from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
 from abb_contracts import Language, Segment
+
+if TYPE_CHECKING:
+    from py3langid.langid import LanguageIdentifier
 
 # Non-textual resources we never want in a text corpus.
 ASSET_EXTENSIONS = (
@@ -53,6 +58,12 @@ def _path_of(url: str) -> str:
     return urlparse(url).path
 
 
+def site_domain(url: str) -> str:
+    """Canonical apex host (lowercased, `www.` stripped) for scoping and `source`."""
+
+    return urlparse(url).netloc.lower().removeprefix("www.")
+
+
 def is_noise(url: str) -> bool:
     path = _path_of(url).lower()
     return any(pattern in path for pattern in NOISE_PATTERNS)
@@ -69,6 +80,38 @@ def derive_language(url: str) -> Language:
     return Language.AZ
 
 
+# ABB serves some /en/ and /ru/ URLs with untranslated Azerbaijani content, so the
+# URL prefix alone mislabels language. We reconcile against detected content
+# language, trusting detection only on enough text, at high confidence, among az/en/ru.
+_DETECT_MIN_CHARS = 200
+_DETECT_SAMPLE_CHARS = 2000
+_DETECT_MIN_CONFIDENCE = 0.85
+
+
+@lru_cache(maxsize=1)
+def _language_identifier() -> "LanguageIdentifier":
+    from py3langid.langid import MODEL_FILE, LanguageIdentifier
+
+    identifier = LanguageIdentifier.from_pickled_model(MODEL_FILE, norm_probs=True)
+    identifier.set_languages([Language.AZ.value, Language.EN.value, Language.RU.value])
+    return identifier
+
+
+def reconcile_language(markdown: str, url_language: Language) -> Language:
+    """Override the URL-derived language when the body text clearly disagrees."""
+
+    text = markdown.strip()
+    if len(text) < _DETECT_MIN_CHARS:
+        return url_language
+    code, probability = _language_identifier().classify(text[:_DETECT_SAMPLE_CHARS])
+    if probability < _DETECT_MIN_CONFIDENCE:
+        return url_language
+    try:
+        return Language(code)
+    except ValueError:
+        return url_language
+
+
 # Authoritative site sections (URL prefixes). Business is checked first: a
 # "biznes-krediti" page is a business product even though it also matches the
 # retail "kredit" keyword below.
@@ -79,8 +122,20 @@ _ABOUT_TOKENS = ("haqqimizda", "about")
 # section prefix (e.g. /100-manat-kredit, /kredit-kartlari, /emanet). Without
 # these, ~60% of pages collapse to `other`; these recover the consumer products.
 _RETAIL_KEYWORDS = (
-    "kredit", "credit", "kart", "card", "əmanət", "emanet", "depozit",
-    "deposit", "hesab", "account", "ipoteka", "mortgage", "pul-gonder", "transfer",
+    "kredit",
+    "credit",
+    "kart",
+    "card",
+    "əmanət",
+    "emanet",
+    "depozit",
+    "deposit",
+    "hesab",
+    "account",
+    "ipoteka",
+    "mortgage",
+    "pul-gonder",
+    "transfer",
 )
 
 

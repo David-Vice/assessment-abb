@@ -87,11 +87,12 @@ Validated against `abb_contracts.Corpus` / `CorpusDocument`.
 
 ## Behavior
 
-- **Polite by default:** obeys `robots.txt`, identifies via a custom User-Agent, bounded concurrency paces the crawl.
+- **Polite by default:** obeys `robots.txt` (fails closed on a robots server error; honors `Crawl-delay`), identifies via a custom User-Agent, bounded concurrency paces the crawl.
 - **Coverage:** seeds from `sitemap.xml`; excludes assets, login portals, and noise (`xeberler` news, `satinalmalar` procurement, `kampaniyalar` time-sensitive/untranslated campaigns).
-- **Clean text:** trafilatura strips nav/ads/footers → markdown; an lxml fallback recovers structured tables; pages with too little content are dropped.
-- **Deduplicated:** identical content (by SHA-256) is dropped; output sorted by URL for stable diffs.
-- **Metadata:** `language` and `segment` are derived from the URL for downstream filtered retrieval.
+- **Clean text:** trafilatura strips nav/ads/footers → markdown; the site-wide feedback widget is stripped; an lxml fallback (block + inline separation) recovers structured tables; pages with too little content are dropped.
+- **Deduplicated:** identical content (SHA-256 over whitespace-normalized text) is dropped; output sorted by URL for stable diffs.
+- **Metadata:** `language` is reconciled from page content (py3langid) against the URL prefix; `segment` is classified from URL section + product keywords.
+- **Fails loud:** a failed sitemap/robots fetch or a zero-document crawl raises instead of writing an empty corpus.
 
 ## Tests
 
@@ -104,12 +105,19 @@ uv run pytest apps/scraper
 
 ## Known limitations / future enhancements
 
-- **Exact-hash dedup only.** Near-duplicates (same disclosure across URLs,
-  whitespace variants) are not collapsed. Paragraph-level dedup at the chunking
-  step (P3) would handle these — deferred to keep the crawler simple.
-- **Segment heuristic.** Root-level SEO landing pages (e.g. `/100-manat-kredit`)
-  lack `ferdi`/`biznes` keywords and fall to `other`; a keyword/topic classifier
-  could refine segment tagging.
-- **Language by URL, not content.** A few untranslated `/en/`,`/ru/` pages carry
-  source-language text but are tagged by URL prefix; content-based language
-  detection is the production fix.
+- **Semantic near-duplicates.** Whitespace-variant duplicates are collapsed (the
+  content hash is over whitespace-normalized text); *semantically* near-identical
+  pages (the same disclosure reworded) are not — deferred to paragraph-level
+  dedup at chunking (P3).
+- **Segment residual.** A URL keyword classifier handles root-level SEO pages
+  (`/100-manat-kredit` → individuals), cutting `other` to ~11%; the residual is
+  pages with no section or product keyword. Segment is display/analytics
+  metadata, not a retrieval filter.
+- **Language detection edge cases.** Language is reconciled from content
+  (py3langid, restricted to az/en/ru) against the URL prefix, correcting
+  untranslated `/en/`,`/ru/` pages. Very short or heavily code-mixed pages may
+  still keep the URL language.
+- **Inline value fusion.** Block-level run-on is fixed; a few calculator/spec
+  widgets render label and value as adjacent inline spans with no whitespace in
+  the source DOM, which can still fuse (e.g. `ödəniş888.49`). A safe universal
+  fix is constrained by legitimate alphanumerics (postal/SWIFT codes).
