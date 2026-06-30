@@ -128,6 +128,24 @@ services:
       retries: 5
     networks: [abb_net]
 
+  # Offline eval with the same deps + env as chat (incl. optional rerank).
+  # Usage: docker compose --profile eval run --rm eval --stem baseline
+  eval:
+    profiles: [eval]
+    build:
+      context: .
+      dockerfile: eval/Dockerfile
+      args:
+        INSTALL_RERANK: ${INSTALL_RERANK:-false}
+    env_file: [.env]
+    environment:
+      HF_HUB_OFFLINE: "1"
+    volumes:
+      - ./eval/results:/app/eval/results
+    depends_on:
+      postgres: { condition: service_healthy }
+    networks: [abb_net]
+
 volumes:
   pg_data:
 

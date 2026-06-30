@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import os
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
 from abb_contracts import Corpus
 from abb_rag import ingest_corpus
+from abb_rag.settings import get_settings
 
 from abb_eval.models import GoldenItem, ItemResult
 from abb_eval.report import build_report, write_report
@@ -23,6 +25,30 @@ from abb_eval.runner import (
 def _configure_event_loop() -> None:
     if sys.platform == "win32":
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
+
+def _disable_rerank() -> None:
+    os.environ["RERANK_ENABLED"] = "false"
+    get_settings.cache_clear()
+
+
+def _ensure_rerank_ready() -> None:
+    """Fail fast when .env enables rerank but sentence-transformers is missing."""
+    settings = get_settings()
+    if not settings.rerank_enabled:
+        return
+    try:
+        import sentence_transformers  # noqa: F401
+    except ImportError:
+        print(
+            "RERANK_ENABLED=true but sentence-transformers is not installed in this environment.\n"
+            "For prod-faithful scores (same stack as chat), run eval in Docker:\n"
+            "  docker compose --profile eval run --rm eval --corpus /app/corpus.sample.json "
+            "--stem baseline\n"
+            "Or pass --no-rerank for a quick local run without cross-encoder reranking.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
 
 
 async def _ingest(corpus_path: Path) -> None:
@@ -118,8 +144,21 @@ def main() -> None:
         default=None,
         help="Output filename stem (default: eval-<timestamp>)",
     )
+    parser.add_argument(
+        "--no-rerank",
+        action="store_true",
+        help="Disable cross-encoder rerank (quick local run; scores differ from prod)",
+    )
     args = parser.parse_args()
 
+    if args.no_rerank:
+        _disable_rerank()
+    _ensure_rerank_ready()
+    settings = get_settings()
+    if settings.rerank_enabled:
+        print("rerank: enabled (prod-faithful retrieval)", flush=True)
+    else:
+        print("rerank: disabled", flush=True)
     _configure_event_loop()
     json_path, md_path = asyncio.run(
         run_eval(

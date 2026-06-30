@@ -3,25 +3,52 @@
 Offline RAGAS evaluation over a curated golden question set. Calls the same
 guardrail, retrieval, and generation stack as `apps/chat` (no HTTP mocking).
 
-## Prerequisites
+## Prod-faithful eval (recommended)
 
-- Postgres with the sample corpus indexed (`corpus.sample.json` is committed at
-  the repo root).
-- `OPENAI_API_KEY` in the environment (guardrail, embeddings, generation, RAGAS).
+Use this when `RERANK_ENABLED=true` in `.env` — same rerank stack as the chat
+container (torch + BGE cross-encoder baked into the eval image).
 
 ```bash
-# One-time ingest (or upload via the web UI)
-DATABASE_URL=postgresql+psycopg://abb:abb@localhost:5432/abb_rag \
-  uv run python scripts/verify_rag.py
+docker compose --profile eval run --rm eval \
+  --corpus /app/corpus.sample.json \
+  --stem baseline
 
-# Full eval (RAGAS + guardrail)
-uv run abb-eval --corpus corpus.sample.json
-
-# Guardrail-only (no RAGAS cost)
-uv run abb-eval --skip-ragas
+# or
+bash scripts/run_eval_prod.sh --stem baseline
 ```
 
-Reports land in `eval/results/` as paired JSON + Markdown files.
+Reports are written to `eval/results/` on the host. Inside the container,
+`DATABASE_URL` from `.env` already points at `postgres:5432` on the compose network.
+
+Rebuild when `INSTALL_RERANK` or deps change:
+
+```bash
+docker compose --profile eval build eval
+```
+
+## Quick local eval (no rerank)
+
+For a fast smoke test on the host venv **without** prod parity (hybrid search
+only, no cross-encoder):
+
+```bash
+# Windows: use localhost:5433 if native Postgres occupies 5432
+DATABASE_URL=postgresql+psycopg://abb:abb@localhost:5433/abb_rag \
+  uv run abb-eval --no-rerank --stem baseline
+```
+
+Scores from `--no-rerank` runs are **not comparable** to production chat when
+reranking is enabled there.
+
+## Full local eval with rerank
+
+Only if you install the rerank extra locally (heavy: pulls torch):
+
+```bash
+uv sync --package abb-chat --extra rerank
+DATABASE_URL=postgresql+psycopg://abb:abb@localhost:5433/abb_rag \
+  uv run abb-eval --stem baseline
+```
 
 ## Golden set
 

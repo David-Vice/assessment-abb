@@ -62,12 +62,15 @@ Switch to **Dashboard**. Highlight:
 
 ## 6. Evaluation report
 
+**Prod-faithful** (same rerank + `.env` as chat):
+
 ```bash
-uv run abb-eval --corpus corpus.sample.json --stem baseline
+docker compose --profile eval run --rm eval \
+  --corpus /app/corpus.sample.json --stem baseline
 ```
 
 Open `eval/results/baseline.md` — RAGAS scores, guardrail precision/recall,
-per-question table.
+per-question table. Use this for demo numbers when `RERANK_ENABLED=true`.
 
 ## 7. Architecture talking points
 
