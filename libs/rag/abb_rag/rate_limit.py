@@ -43,7 +43,11 @@ async def allow_request(redis: object, *, scope: str, client_id: str, limit: int
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
-    """Redis-backed per-IP rate limiting; skips `/health` and degrades if Redis is down."""
+    """Redis-backed per-IP rate limiting on expensive POSTs only.
+
+    Skips `/health`, all GETs (ingestion status polling, session hydration),
+    and degrades gracefully if Redis is down.
+    """
 
     def __init__(self, app: ASGIApp, *, scope: str) -> None:
         super().__init__(app)
@@ -52,7 +56,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     async def dispatch(
         self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
-        if request.url.path == "/health":
+        if request.url.path == "/health" or request.method != "POST":
             return await call_next(request)
 
         redis: object | None = getattr(request.app.state, "redis", None)

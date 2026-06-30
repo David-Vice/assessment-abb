@@ -78,3 +78,7 @@ def test_rate_limit_returns_429(client: TestClient, monkeypatch: pytest.MonkeyPa
     assert first.status_code == 200
     assert second.status_code == 429
     assert second.json()["code"] == "RATE_LIMITED"
+
+    # GET polling is not counted — still allowed after POST limit is hit.
+    status = client.get(f"/ingest/{first.json()['job_id']}")
+    assert status.status_code == 200
