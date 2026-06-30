@@ -9,7 +9,15 @@ dependencies = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.32",
     "sse-starlette>=2.1",
+    "langchain-openai>=0.2",
+    "langchain-core>=0.3",
 ]
+
+[project.optional-dependencies]
+# Pulls the local BGE reranker (torch) via the core's `rerank` extra. Only the
+# chat service runs reranking, so only this image opts in (build with the
+# INSTALL_RERANK arg). Keep in sync with RERANK_ENABLED at runtime.
+rerank = ["abb-rag-core[rerank]"]
 
 [build-system]
 requires = ["hatchling"]

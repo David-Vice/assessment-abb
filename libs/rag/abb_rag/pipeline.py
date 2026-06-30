@@ -1,4 +1,4 @@
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 
 from abb_contracts import Corpus, CorpusDocument, Language
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,7 +15,8 @@ from abb_rag.vectorstore import load_existing_hashes, upsert_document
 
 logger = get_logger(__name__)
 
-ProgressCallback = Callable[[int, int], None]
+# Async so callers can report progress over I/O (e.g. a Redis job tracker).
+ProgressCallback = Callable[[int, int], Awaitable[None]]
 
 
 async def ingest_corpus(corpus: Corpus, on_progress: ProgressCallback | None = None) -> int:
@@ -60,7 +61,7 @@ async def ingest_corpus(corpus: Corpus, on_progress: ProgressCallback | None = N
             await upsert_document(session, document, chunks, doc_vectors)
         indexed += len(chunks)
         if on_progress is not None:
-            on_progress(done, len(pending))
+            await on_progress(done, len(pending))
 
     logger.info("ingest_complete", documents=len(pending), chunks=indexed)
     return indexed

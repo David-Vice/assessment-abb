@@ -1,4 +1,4 @@
-from abb_rag.chunking import chunk_document
+from abb_rag.chunking import chunk_document, count_tokens
 from abb_rag.db import get_engine, get_sessionmaker, session_scope
 from abb_rag.embeddings import embed_query, embed_texts
 from abb_rag.exceptions import (
@@ -23,6 +23,7 @@ __all__ = [
     "Settings",
     "chunk_document",
     "configure_logging",
+    "count_tokens",
     "embed_query",
     "embed_texts",
     "get_engine",

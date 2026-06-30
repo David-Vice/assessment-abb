@@ -12,8 +12,12 @@ dependencies = [
     "psycopg[binary]>=3.2",
     "langchain-openai>=0.2",
     "tiktoken>=0.8",
-    "sentence-transformers>=3.0",
 ]
+
+[project.optional-dependencies]
+# Local BGE reranker (pulls torch). Optional so service images stay lean — only
+# needed when RERANK_ENABLED=true. Install via the `rerank` extra.
+rerank = ["sentence-transformers>=3.0"]
 
 [build-system]
 requires = ["hatchling"]

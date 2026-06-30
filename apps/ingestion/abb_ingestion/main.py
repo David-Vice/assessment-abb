@@ -6,13 +6,20 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from abb_ingestion.redis_pool import create_redis_pool
+from abb_ingestion.routers.ingest import router as ingest_router
+
 SERVICE_NAME = "ingestion"
 
 
 @asynccontextmanager
-async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     configure_logging()
-    yield
+    app.state.redis = await create_redis_pool()
+    try:
+        yield
+    finally:
+        await app.state.redis.aclose()
 
 
 def create_app() -> FastAPI:
@@ -32,6 +39,8 @@ def create_app() -> FastAPI:
             status_code=exc.status_code,
             content={"code": exc.code, "detail": exc.message},
         )
+
+    app.include_router(ingest_router)
 
     @app.get("/health")
     async def health() -> dict[str, str]:

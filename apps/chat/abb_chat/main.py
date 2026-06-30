@@ -6,6 +6,8 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from abb_chat.routers.chat import router as chat_router
+
 SERVICE_NAME = "chat"
 
 
@@ -32,6 +34,8 @@ def create_app() -> FastAPI:
             status_code=exc.status_code,
             content={"code": exc.code, "detail": exc.message},
         )
+
+    app.include_router(chat_router)
 
     @app.get("/health")
     async def health() -> dict[str, str]:

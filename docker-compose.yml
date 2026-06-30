@@ -36,6 +36,8 @@ services:
       context: .
       dockerfile: apps/ingestion/Dockerfile
     env_file: [.env]
+    init: true
+    stop_grace_period: 30s
     ports:
       - "8001:8001"
     depends_on:
@@ -48,11 +50,32 @@ services:
       retries: 10
     networks: [abb_net]
 
+  worker:
+    build:
+      context: .
+      dockerfile: apps/ingestion/Dockerfile
+    command: ["/app/.venv/bin/arq", "abb_ingestion.worker.WorkerSettings"]
+    env_file: [.env]
+    init: true
+    stop_grace_period: 30s
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    networks: [abb_net]
+
   chat:
     build:
       context: .
       dockerfile: apps/chat/Dockerfile
+      args:
+        INSTALL_RERANK: ${INSTALL_RERANK:-false}
     env_file: [.env]
+    # Reranker weights are baked into the image, so load them offline — skips the
+    # slow HuggingFace Hub update-check on first use.
+    environment:
+      HF_HUB_OFFLINE: "1"
+    init: true
+    stop_grace_period: 30s
     ports:
       - "8002:8002"
     depends_on:
@@ -70,6 +93,8 @@ services:
       context: .
       dockerfile: apps/analytics/Dockerfile
     env_file: [.env]
+    init: true
+    stop_grace_period: 30s
     ports:
       - "8003:8003"
     depends_on:

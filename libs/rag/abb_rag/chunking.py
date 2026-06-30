@@ -55,6 +55,12 @@ def chunk_document(document: CorpusDocument) -> list[Chunk]:
     return chunks
 
 
+def count_tokens(text: str) -> int:
+    """Token count under the embedding encoding (cl100k_base) — used for budgets."""
+
+    return _count_tokens(text)
+
+
 def _count_tokens(text: str) -> int:
     return len(_ENCODING.encode(text))
 

@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     rerank_enabled: bool = True
     rerank_model: str = "BAAI/bge-reranker-v2-m3"
     context_token_budget: int = 8000
+    chat_memory_enabled: bool = True
 
     database_url: str = "postgresql+psycopg://abb:abb@localhost:5432/abb_rag"
     redis_url: str = "redis://localhost:6379/0"
