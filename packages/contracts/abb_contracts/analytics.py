@@ -39,6 +39,7 @@ class QualityStats(BaseModel):
 
     answered: int
     declined_off_topic: int
+    declined_injection: int
     error: int
 
 

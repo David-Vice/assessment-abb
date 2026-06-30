@@ -48,7 +48,15 @@ export function useIngestion(): UseIngestionResult {
       setIngestionError(poll.data?.error ?? 'upload.failed');
       setJobId(null);
     }
-  }, [poll.data?.state, poll.data?.total, setCorpusStatus, setDocCount, setJobId]);
+  }, [
+    poll.data?.state,
+    poll.data?.total,
+    poll.data?.error,
+    setCorpusStatus,
+    setDocCount,
+    setIngestionError,
+    setJobId,
+  ]);
 
   return {
     start: (corpus) => mutation.mutate(corpus),

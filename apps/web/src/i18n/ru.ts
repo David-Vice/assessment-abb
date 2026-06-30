@@ -44,6 +44,40 @@ const ru = {
     chat: 'Чат',
     dashboard: 'Панель',
   },
+  dashboard: {
+    title: 'Аналитика',
+    subtitle: 'Аналитика на основе сохранённых вопросов и ответов.',
+    empty: 'Пока нет данных за этот период.',
+    error: 'Не удалось загрузить аналитику. Попробуйте ещё раз.',
+    allLanguages: 'Все',
+    byLanguage: 'По языку',
+    bySegment: 'По сегменту',
+    range: {
+      '24h': 'За 24 часа',
+      '7d': 'За 7 дней',
+      '30d': 'За 30 дней',
+    },
+    kpi: {
+      totalQuestions: 'Всего вопросов',
+      answeredRate: 'Доля ответов',
+      avgLatency: 'Ср. задержка',
+      p95Latency: 'P95 задержка',
+      avgTokens: 'Ср. токены',
+      estCost: 'Прибл. стоимость',
+    },
+    charts: {
+      volume: 'Объём вопросов',
+      quality: 'Качество ответов',
+      distribution: 'Распределение',
+      topQuestions: 'Частые вопросы',
+    },
+    quality: {
+      answered: 'Отвечено',
+      offTopic: 'Не по теме',
+      injection: 'Инъекция',
+      error: 'Ошибка',
+    },
+  },
 } as const;
 
 export default ru;

@@ -70,6 +70,57 @@ export const CorpusSchema = z.object({
   documents: z.array(CorpusDocumentSchema).default([]),
 });
 
+// --- Analytics (P6) — mirror packages/contracts/abb_contracts/analytics.py ---
+
+export const TimeBucketSchema = z.object({
+  bucket: z.string(),
+  count: z.number(),
+});
+
+export const VolumeSeriesSchema = z.object({
+  points: z.array(TimeBucketSchema).default([]),
+});
+
+export const TopQuestionSchema = z.object({
+  question: z.string(),
+  count: z.number(),
+});
+
+export const PerformanceStatsSchema = z.object({
+  avg_latency_ms: z.number(),
+  p95_latency_ms: z.number(),
+  avg_total_tokens: z.number(),
+  estimated_cost_usd: z.number(),
+});
+
+export const QualityStatsSchema = z.object({
+  answered: z.number(),
+  declined_off_topic: z.number(),
+  declined_injection: z.number(),
+  error: z.number(),
+});
+
+// String-keyed (not enum-keyed) because the backend only emits the languages /
+// segments actually present; an enum-keyed record would demand every key.
+export const DistributionStatsSchema = z.object({
+  by_language: z.record(z.string(), z.number()).default({}),
+  by_segment: z.record(z.string(), z.number()).default({}),
+});
+
+export const AnalyticsSummarySchema = z.object({
+  total_questions: z.number(),
+  answered_rate: z.number(),
+  avg_latency_ms: z.number(),
+});
+
+export type TimeBucket = z.infer<typeof TimeBucketSchema>;
+export type VolumeSeries = z.infer<typeof VolumeSeriesSchema>;
+export type TopQuestion = z.infer<typeof TopQuestionSchema>;
+export type PerformanceStats = z.infer<typeof PerformanceStatsSchema>;
+export type QualityStats = z.infer<typeof QualityStatsSchema>;
+export type DistributionStats = z.infer<typeof DistributionStatsSchema>;
+export type AnalyticsSummary = z.infer<typeof AnalyticsSummarySchema>;
+
 export type Language = z.infer<typeof LanguageSchema>;
 export type Segment = z.infer<typeof SegmentSchema>;
 export type AnswerStatus = z.infer<typeof AnswerStatusSchema>;

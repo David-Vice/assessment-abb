@@ -44,6 +44,40 @@ const en = {
     chat: 'Chat',
     dashboard: 'Dashboard',
   },
+  dashboard: {
+    title: 'Analytics',
+    subtitle: 'Insights from stored questions and answers.',
+    empty: 'No data for this range yet.',
+    error: 'Could not load analytics. Please try again.',
+    allLanguages: 'All',
+    byLanguage: 'By language',
+    bySegment: 'By segment',
+    range: {
+      '24h': 'Last 24h',
+      '7d': 'Last 7 days',
+      '30d': 'Last 30 days',
+    },
+    kpi: {
+      totalQuestions: 'Total questions',
+      answeredRate: 'Answered rate',
+      avgLatency: 'Avg latency',
+      p95Latency: 'P95 latency',
+      avgTokens: 'Avg tokens',
+      estCost: 'Est. cost',
+    },
+    charts: {
+      volume: 'Question volume',
+      quality: 'Answer quality',
+      distribution: 'Distribution',
+      topQuestions: 'Top questions',
+    },
+    quality: {
+      answered: 'Answered',
+      offTopic: 'Off-topic',
+      injection: 'Injection',
+      error: 'Error',
+    },
+  },
 } as const;
 
 export default en;

@@ -138,7 +138,7 @@ abb-rag/
 | P3 Indexing & RAG core | `03-indexing-rag-core.md` | ✅ done | `libs/rag`: chunk → embed → pgvector; hybrid retrieve + BGE rerank |
 | P4 Backend API | `04-backend-api.md` | ✅ done | chat/ingestion/analytics services, SSE, async worker, persistence, guardrail, memory |
 | P5 Frontend | `05-frontend.md` | ✅ done | Upload→localforage, streaming chat + citations, i18n (AZ/RU/EN) |
-| P6 Visualization | `06-visualization.md` | ⬜ next | analytics-service + recharts dashboard |
+| P6 Visualization | `06-visualization.md` | ✅ done | analytics-service (6 endpoints) + recharts dashboard |
 | P7 Containerization | `07-containerization.md` | 🟦 partial | Dockerfiles, compose, worker, model prebake, graceful shutdown done early; rate-limit + CI image build remain |
 | P8 Eval & Docs | `08-eval-and-docs.md` | ⬜ | RAGAS harness, READMEs, demo script |
 

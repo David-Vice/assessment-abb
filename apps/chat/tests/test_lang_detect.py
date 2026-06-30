@@ -1,7 +1,6 @@
 import pytest
-
-from abb_contracts import Language
 from abb_chat.lang_detect import auto_language
+from abb_contracts import Language
 
 
 @pytest.mark.parametrize(

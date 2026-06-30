@@ -21,13 +21,14 @@ async def test_progress_roundtrip_tracks_state_and_counts() -> None:
     assert status.total == 10
     assert status.processed == 0
 
-    # Act & Assert — running with progress
+    # Act & Assert — running with progress; total stays fixed from init_progress
     await set_state(redis, "job-1", IngestionState.RUNNING)
-    await set_processed(redis, "job-1", 5, 10)
+    await set_processed(redis, "job-1", 5)
     status = await read_status(redis, "job-1")
     assert status is not None
     assert status.state is IngestionState.RUNNING
     assert status.processed == 5
+    assert status.total == 10
 
     # Act & Assert — failure carries the error
     await set_failed(redis, "job-1", "boom")

@@ -5,7 +5,7 @@ import fakeredis.aioredis
 import pytest
 from abb_contracts import Corpus, CorpusDocument, IngestionState, Language, Segment
 from abb_ingestion import worker as worker_module
-from abb_ingestion.progress import read_status
+from abb_ingestion.progress import init_progress, read_status
 from abb_ingestion.worker import ingest_corpus_job
 
 
@@ -26,9 +26,11 @@ def _corpus_payload() -> dict[str, Any]:
 async def test_ingest_corpus_job_completes_and_tracks_progress(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # Arrange
+    # Arrange — the router sets the full-corpus total before enqueue; the worker
+    # only advances `processed`, so seed total here to mirror that lifecycle.
     redis = fakeredis.aioredis.FakeRedis()
     ctx = {"job_id": "job-9", "redis": redis}
+    await init_progress(redis, "job-9", total=1)
 
     async def fake_ingest(corpus: Any, on_progress: Any = None) -> int:
         if on_progress is not None:

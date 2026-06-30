@@ -1,5 +1,33 @@
-import { ChatTurnSchema, IngestionJobSchema, IngestionStatusSchema } from './schemas';
-import type { ChatTurn, Corpus, IngestionJob, IngestionStatus } from './schemas';
+import {
+  AnalyticsSummarySchema,
+  ChatTurnSchema,
+  DistributionStatsSchema,
+  IngestionJobSchema,
+  IngestionStatusSchema,
+  PerformanceStatsSchema,
+  QualityStatsSchema,
+  TopQuestionSchema,
+  VolumeSeriesSchema,
+} from './schemas';
+import type {
+  AnalyticsSummary,
+  ChatTurn,
+  Corpus,
+  DistributionStats,
+  IngestionJob,
+  IngestionStatus,
+  Language,
+  PerformanceStats,
+  QualityStats,
+  TopQuestion,
+  VolumeSeries,
+} from './schemas';
+
+export interface AnalyticsFilters {
+  from?: string;
+  to?: string;
+  lang?: Language;
+}
 
 // In dev, use empty base so Vite proxy handles routing (no CORS).
 // In production (Docker), Vite bakes in the VITE_* env vars at build time.
@@ -50,6 +78,53 @@ export async function getSession(sessionId: string): Promise<ChatTurn[]> {
   return ChatTurnSchema.array().parse(raw);
 }
 
-export async function apiFetchAnalytics<T>(path: string): Promise<T> {
-  return apiFetch<T>(`${ANALYTICS_URL}${path}`);
+function analyticsQuery(filters: AnalyticsFilters, extra?: Record<string, string>): string {
+  const params = new URLSearchParams();
+  if (filters.from) params.set('from', filters.from);
+  if (filters.to) params.set('to', filters.to);
+  if (filters.lang) params.set('lang', filters.lang);
+  for (const [key, value] of Object.entries(extra ?? {})) params.set(key, value);
+  const query = params.toString();
+  return query ? `?${query}` : '';
+}
+
+export async function getAnalyticsSummary(filters: AnalyticsFilters): Promise<AnalyticsSummary> {
+  const raw = await apiFetch<unknown>(`${ANALYTICS_URL}/analytics/summary${analyticsQuery(filters)}`);
+  return AnalyticsSummarySchema.parse(raw);
+}
+
+export async function getAnalyticsVolume(
+  filters: AnalyticsFilters,
+  bucket: 'hour' | 'day',
+): Promise<VolumeSeries> {
+  const path = `/analytics/volume${analyticsQuery(filters, { bucket })}`;
+  const raw = await apiFetch<unknown>(`${ANALYTICS_URL}${path}`);
+  return VolumeSeriesSchema.parse(raw);
+}
+
+export async function getAnalyticsTopQuestions(filters: AnalyticsFilters): Promise<TopQuestion[]> {
+  const path = `/analytics/top-questions${analyticsQuery(filters)}`;
+  const raw = await apiFetch<unknown>(`${ANALYTICS_URL}${path}`);
+  return TopQuestionSchema.array().parse(raw);
+}
+
+export async function getAnalyticsPerformance(
+  filters: AnalyticsFilters,
+): Promise<PerformanceStats> {
+  const path = `/analytics/performance${analyticsQuery(filters)}`;
+  const raw = await apiFetch<unknown>(`${ANALYTICS_URL}${path}`);
+  return PerformanceStatsSchema.parse(raw);
+}
+
+export async function getAnalyticsQuality(filters: AnalyticsFilters): Promise<QualityStats> {
+  const raw = await apiFetch<unknown>(`${ANALYTICS_URL}/analytics/quality${analyticsQuery(filters)}`);
+  return QualityStatsSchema.parse(raw);
+}
+
+export async function getAnalyticsDistribution(
+  filters: AnalyticsFilters,
+): Promise<DistributionStats> {
+  const path = `/analytics/distribution${analyticsQuery(filters)}`;
+  const raw = await apiFetch<unknown>(`${ANALYTICS_URL}${path}`);
+  return DistributionStatsSchema.parse(raw);
 }

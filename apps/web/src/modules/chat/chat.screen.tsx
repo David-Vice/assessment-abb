@@ -1,4 +1,4 @@
-import { PlusCircle, Upload } from 'lucide-react';
+import { BarChart3, PlusCircle, Upload } from 'lucide-react';
 import * as React from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -13,9 +13,10 @@ import { useChat } from './hooks/use-chat';
 
 interface ChatScreenProps {
   onGoToUpload: () => void;
+  onGoToDashboard: () => void;
 }
 
-export function ChatScreen({ onGoToUpload }: ChatScreenProps): React.JSX.Element {
+export function ChatScreen({ onGoToUpload, onGoToDashboard }: ChatScreenProps): React.JSX.Element {
   const { t } = useTranslation();
   const language = useAppStore((s) => s.language);
   const sessionId = useAppStore((s) => s.sessionId);
@@ -38,6 +39,10 @@ export function ChatScreen({ onGoToUpload }: ChatScreenProps): React.JSX.Element
 
   const headerActions = (
     <>
+      <Button variant="ghost" size="sm" onClick={onGoToDashboard} className="gap-1.5 text-xs">
+        <BarChart3 className="h-3.5 w-3.5" />
+        {t('nav.dashboard')}
+      </Button>
       <Button variant="ghost" size="sm" onClick={onGoToUpload} className="gap-1.5 text-xs">
         <Upload className="h-3.5 w-3.5" />
         {t('nav.upload')}

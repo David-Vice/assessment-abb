@@ -35,6 +35,7 @@ dependencies = [
     { name = "abb-contracts" },
     { name = "abb-rag-core" },
     { name = "fastapi" },
+    { name = "redis" },
     { name = "uvicorn", extra = ["standard"] },
 ]
 
@@ -43,6 +44,7 @@ requires-dist = [
     { name = "abb-contracts", editable = "packages/contracts" },
     { name = "abb-rag-core", editable = "libs/rag" },
     { name = "fastapi", specifier = ">=0.115" },
+    { name = "redis", specifier = ">=5" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.32" },
 ]
 

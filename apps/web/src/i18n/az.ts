@@ -44,6 +44,40 @@ const az = {
     chat: 'Söhbət',
     dashboard: 'İdarə paneli',
   },
+  dashboard: {
+    title: 'Analitika',
+    subtitle: 'Saxlanılan sual və cavablardan əldə edilən məlumatlar.',
+    empty: 'Bu aralıq üçün hələ məlumat yoxdur.',
+    error: 'Analitika yüklənmədi. Zəhmət olmasa yenidən cəhd edin.',
+    allLanguages: 'Hamısı',
+    byLanguage: 'Dil üzrə',
+    bySegment: 'Seqment üzrə',
+    range: {
+      '24h': 'Son 24 saat',
+      '7d': 'Son 7 gün',
+      '30d': 'Son 30 gün',
+    },
+    kpi: {
+      totalQuestions: 'Ümumi suallar',
+      answeredRate: 'Cavablanma faizi',
+      avgLatency: 'Orta gecikmə',
+      p95Latency: 'P95 gecikmə',
+      avgTokens: 'Orta token',
+      estCost: 'Təxmini xərc',
+    },
+    charts: {
+      volume: 'Sual həcmi',
+      quality: 'Cavab keyfiyyəti',
+      distribution: 'Paylanma',
+      topQuestions: 'Ən çox verilən suallar',
+    },
+    quality: {
+      answered: 'Cavablandı',
+      offTopic: 'Mövzudan kənar',
+      injection: 'İnyeksiya',
+      error: 'Xəta',
+    },
+  },
 } as const;
 
 export default az;
