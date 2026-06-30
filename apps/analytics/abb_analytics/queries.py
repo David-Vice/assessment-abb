@@ -98,9 +98,7 @@ _DISTRIBUTION_SEG_SQL = text(
 )
 
 
-def _params(
-    from_ts: datetime, to_ts: datetime, language: Language | None
-) -> dict[str, object]:
+def _params(from_ts: datetime, to_ts: datetime, language: Language | None) -> dict[str, object]:
     return {
         "from_ts": from_ts,
         "to_ts": to_ts,
@@ -127,9 +125,7 @@ async def get_volume(
     params = {**_params(from_ts, to_ts, language), "bucket": bucket}
     async with session_scope() as session:
         rows = (await _execute(session, _VOLUME_SQL, params)).all()
-    return VolumeSeries(
-        points=[TimeBucket(bucket=row.bucket, count=int(row.n)) for row in rows]
-    )
+    return VolumeSeries(points=[TimeBucket(bucket=row.bucket, count=int(row.n)) for row in rows])
 
 
 async def get_top_questions(
@@ -182,9 +178,7 @@ async def get_distribution(
     return DistributionStats(
         by_language={Language(row.language): int(row.n) for row in lang_rows},
         by_segment={
-            Segment(row.segment): int(row.n)
-            for row in seg_rows
-            if row.segment is not None
+            Segment(row.segment): int(row.n) for row in seg_rows if row.segment is not None
         },
     )
 

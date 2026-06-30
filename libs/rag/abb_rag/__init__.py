@@ -6,6 +6,7 @@ from abb_rag.exceptions import (
     ExternalServiceError,
     InputValidationError,
     NotFoundError,
+    RateLimitError,
 )
 from abb_rag.log import configure_logging, get_logger
 from abb_rag.models import Chunk, RetrievedChunk
@@ -19,6 +20,7 @@ __all__ = [
     "ExternalServiceError",
     "InputValidationError",
     "NotFoundError",
+    "RateLimitError",
     "RetrievedChunk",
     "Settings",
     "chunk_document",

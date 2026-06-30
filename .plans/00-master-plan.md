@@ -139,7 +139,7 @@ abb-rag/
 | P4 Backend API | `04-backend-api.md` | ✅ done | chat/ingestion/analytics services, SSE, async worker, persistence, guardrail, memory |
 | P5 Frontend | `05-frontend.md` | ✅ done | Upload→localforage, streaming chat + citations, i18n (AZ/RU/EN) |
 | P6 Visualization | `06-visualization.md` | ✅ done | analytics-service (6 endpoints) + recharts dashboard |
-| P7 Containerization | `07-containerization.md` | 🟦 partial | Dockerfiles, compose, worker, model prebake, graceful shutdown done early; rate-limit + CI image build remain |
+| P7 Containerization | `07-containerization.md` | ✅ done | Dockerfiles, compose, worker, model prebake, graceful shutdown, Redis rate limiting, CI image build |
 | P8 Eval & Docs | `08-eval-and-docs.md` | ⬜ | RAGAS harness, READMEs, demo script |
 
 > **Build/run note (cross-phase):** `POSTGRES_HOST_PORT` overrides the host port if a native Postgres occupies 5432. Reranking is optional — `INSTALL_RERANK=true` (build) bakes the BGE model into the chat image; `RERANK_ENABLED=true` (runtime) turns it on; both default off for lean, fast, GPU-free operation.

@@ -99,9 +99,8 @@ Re-ingest your corpus after recreating the volume.
 
 ## Status
 
-Backend complete through **P4**: scraper → `corpus.json` (P2), the `libs/rag`
-retrieval core (P3), and the three FastAPI microservices — chat (SSE, guardrail,
-prompt-injection defense, memory, citations), ingestion (async arq worker), and
-analytics — with full persistence (P4). Next: **P5** (web UI), **P6** (dashboard),
-**P7** (rate limiting + CI image build), **P8** (RAGAS eval + docs). See
-[`.plans/00-master-plan.md`](.plans/00-master-plan.md) for the full roadmap.
+**P1–P7 complete.** Scraper → `corpus.json` (P2), `libs/rag` retrieval core (P3),
+three FastAPI microservices with SSE chat, guardrails, async ingestion, and analytics
+(P4), React SPA with upload, streaming chat, and i18n (P5), recharts dashboard (P6),
+and containerization with Redis rate limiting + CI image builds (P7). Next: **P8**
+(RAGAS eval + docs). See [`.plans/00-master-plan.md`](.plans/00-master-plan.md).

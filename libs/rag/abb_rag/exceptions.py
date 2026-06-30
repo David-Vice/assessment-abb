@@ -26,3 +26,11 @@ class ExternalServiceError(AppError):
 
     status_code = 502
     code = "UPSTREAM_ERROR"
+
+
+class RateLimitError(AppError):
+    status_code = 429
+    code = "RATE_LIMITED"
+
+    def __init__(self) -> None:
+        super().__init__("Too many requests. Please try again shortly.")

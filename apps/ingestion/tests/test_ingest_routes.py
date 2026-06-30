@@ -64,3 +64,17 @@ def test_get_unknown_job_returns_404(client: TestClient) -> None:
 
     # Assert
     assert response.status_code == 404
+
+
+def test_rate_limit_returns_429(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    from abb_rag.settings import get_settings
+
+    monkeypatch.setenv("RATE_LIMIT_PER_MINUTE", "1")
+    get_settings.cache_clear()
+
+    first = client.post("/ingest", json=_payload())
+    second = client.post("/ingest", json=_payload())
+
+    assert first.status_code == 200
+    assert second.status_code == 429
+    assert second.json()["code"] == "RATE_LIMITED"

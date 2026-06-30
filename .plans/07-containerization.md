@@ -11,13 +11,9 @@ Package everything for one-command deployment, add Redis-backed rate limiting,
 and complete the CI pipeline. Satisfies brief requirement 4 (Docker) and the
 Efficiency / Code Quality criteria.
 
-> **Status:** the image/compose foundation landed early during P4 testing and is
-> live: per-service Dockerfiles (uv, non-root, `--no-install-workspace` dep layer
-> for cache reuse), the `worker` service, the configurable `POSTGRES_HOST_PORT`,
-> the optional reranker (build arg `INSTALL_RERANK` → `rerank` extra), the baked +
-> offline reranker model, and graceful shutdown (exec-form CMD + `init: true` +
-> `stop_grace_period`). **Remaining for P7:** Redis rate limiting, the CI image-build
-> job, and the web dev override.
+> **Status:** ✅ done. Image/compose foundation landed early during P4; P7 added
+> Redis-backed per-IP rate limiting on chat + ingestion, CI service containers
+> (Postgres + Redis + `init.sql`), a `docker compose build` job, and synced docs.
 
 ## Decisions
 
@@ -38,12 +34,12 @@ Efficiency / Code Quality criteria.
    - Decision: Exec the server/worker binary directly as PID 1 (`/app/.venv/bin/uvicorn|arq`, not `uv run`), plus `init: true` (tini) and `stop_grace_period` per service.
    - Rationale: `uv run` as PID 1 swallowed SIGTERM, forcing ~150s SIGKILL waits on `compose down`. Exec-form + tini delivers the signal so uvicorn/arq stop in ~1s.
 
-4. **Redis token-bucket rate limiting**
-   - Decision: Middleware on chat + ingestion (per-IP/session), limits from env.
+4. **Redis token-bucket rate limiting** ✅ done
+   - Decision: `RateLimitMiddleware` on chat + ingestion (per-IP, fixed 60s window), limits from `RATE_LIMIT_PER_MINUTE`. Skips `/health`; degrades gracefully if Redis is unavailable.
    - Rationale: Decision 8; security awareness; protects OpenAI spend.
 
-5. **CI completes the quality gate**
-   - Decision: GitHub Actions: lint (ruff/eslint) → type (mypy/tsc) → test (pytest with pg+redis service containers; vitest) → build all images. PR-blocking.
+5. **CI completes the quality gate** ✅ done
+   - Decision: GitHub Actions: lint (ruff/eslint) → type (mypy/tsc) → test (pytest with pg+redis service containers + `init.sql`; vitest) → `docker compose build`. PR-blocking.
    - Rationale: Code Quality is scored; prevents regressions.
 
 ## Plan
@@ -75,8 +71,8 @@ networks: [abb_net]
 
 - **Dockerfiles**: `apps/ingestion/Dockerfile`, `apps/chat/Dockerfile` (+ worker command), `apps/analytics/Dockerfile`, `apps/web/Dockerfile` (+ `nginx.conf`).
 - **`docker-compose.yml`**: full topology above with healthchecks, depends_on, volumes, networks; optional `docker-compose.override.yml` for dev (hot reload, mounted source).
-- **Rate limiting**: shared middleware in a small lib, wired into chat + ingestion; env-configurable limits.
+- **Rate limiting**: `libs/rag/abb_rag/rate_limit.py` middleware wired into chat + ingestion; env-configurable `RATE_LIMIT_PER_MINUTE`; unit + route tests.
 - **Model caching**: build step to pre-fetch BGE reranker; mount `model_cache`.
-- **CI** (`.github/workflows/ci.yml`): lint/type/test jobs with postgres+redis services; image build job; cache uv/pnpm.
+- **CI** (`.github/workflows/ci.yml`): lint/type/test jobs with postgres+redis services + schema init; `docker` image-build job; cache uv/pnpm.
 - **Docs**: root README "Run with Docker" section; troubleshooting (ports, model download, OpenAI key).
 - **Verification**: fresh clone → `cp .env.example .env` (set OPENAI key) → `docker compose up` → full flow works end-to-end (upload→ingest→chat→dashboard); rate limit returns 429 past threshold; CI green on a test PR.

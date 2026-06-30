@@ -12,6 +12,7 @@ dependencies = [
     "psycopg[binary]>=3.2",
     "langchain-openai>=0.2",
     "tiktoken>=0.8",
+    "redis>=5.0",
 ]
 
 [project.optional-dependencies]

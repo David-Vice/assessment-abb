@@ -8,6 +8,32 @@ on:
 jobs:
   backend:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: abb
+          POSTGRES_PASSWORD: abb
+          POSTGRES_DB: abb_rag
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U abb -d abb_rag"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql+psycopg://abb:abb@localhost:5432/abb_rag
+      REDIS_URL: redis://localhost:6379/0
     steps:
       - uses: actions/checkout@v4
       - name: Install uv
@@ -17,6 +43,10 @@ jobs:
           python-version: "3.12"
       - name: Sync workspace
         run: uv sync --all-packages --locked
+      - name: Initialize database schema
+        run: |
+          sudo apt-get update && sudo apt-get install -y postgresql-client
+          PGPASSWORD=abb psql -h localhost -U abb -d abb_rag -f infra/postgres/init.sql
       - name: Ruff (lint)
         run: uv run ruff check .
       - name: Ruff (format)
@@ -46,3 +76,10 @@ jobs:
         run: pnpm --dir apps/web type-check
       - name: Test
         run: pnpm --dir apps/web test
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build images
+        run: docker compose build

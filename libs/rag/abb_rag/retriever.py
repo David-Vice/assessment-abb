@@ -103,9 +103,7 @@ async def _search(
         # would under-fill once those overlaps are deduped out.
         if language is not None and len(rows) < limit:
             seen = {int(row.id) for row in rows}
-            fallback = (
-                await session.execute(sql, {**params, "lang": None, "limit": limit})
-            ).all()
+            fallback = (await session.execute(sql, {**params, "lang": None, "limit": limit})).all()
             for row in fallback:
                 if int(row.id) not in seen:
                     rows.append(row)
