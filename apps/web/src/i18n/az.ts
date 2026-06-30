@@ -1,0 +1,52 @@
+const az = {
+  common: {
+    abbAssistant: 'ABB Köməkçisi',
+    poweredBy: 'ABB Bank tərəfindən təqdim edilir',
+  },
+  upload: {
+    title: 'ABB Köməkçisinə xoş gəlmisiniz',
+    subtitle: 'ABB Bankı haqqında sual vermək üçün corpus faylını yükləyin.',
+    dropHere: 'corpus.json-u bura atın',
+    orClick: 'və ya nəzərdən keçirmək üçün klikləyin',
+    validating: 'Corpus yoxlanılır…',
+    uploading: 'Corpus saxlanılır…',
+    startIndexing: 'İndeksləməni başlat',
+    indexing: 'Sənədlər indekslənir…',
+    ready: 'Corpus indeksləndi və hazırdır!',
+    goToChat: 'Söhbəti aç',
+    reUpload: 'Yeni corpus yüklə',
+    invalidFormat: 'Yanlış corpus formatı. Zəhmət olmasa etibarlı corpus.json faylı yükləyin.',
+    documents: '{{count}} sənəd',
+    progress: '{{processed}} / {{total}} sənəd indeksləndi',
+    failed: 'İndeksləmə uğursuz oldu. Zəhmət olmasa yenidən cəhd edin.',
+    errorDetail: 'Xəta: {{message}}',
+    alreadyReady: 'Corpus artıq indekslənib.',
+  },
+  chat: {
+    placeholder: 'ABB Bankı haqqında hər hansı bir sual verin…',
+    send: 'Göndər',
+    newChat: 'Yeni söhbət',
+    thinking: 'ABB Köməkçisi düşünür…',
+    citations: 'Mənbələr',
+    suggestedTitle: 'Bunları soruşmağa cəhd edin:',
+    offTopic:
+      'Bu sual mənim mövzu dairəmdən kənardır. Yalnız ABB Bankı haqqında suallara cavab verə bilərəm.',
+    injection:
+      'Potensial inyeksiya cəhdi aşkar edildi. Zəhmət olmasa ABB Bankı haqqında həqiqi sual verin.',
+    error: 'Nə isə səhv getdi. Zəhmət olmasa yenidən cəhd edin.',
+    suggested: [
+      'ABB Bankın əsas xidmətləri hansılardır?',
+      'ABB Bankda hesab necə açmaq olar?',
+      'ABB hansı kredit məhsulları təklif edir?',
+      'ABB Bank hansı kartları təklif edir?',
+      'ABB Banka necə müraciət etmək olar?',
+    ],
+  },
+  nav: {
+    upload: 'Yüklə',
+    chat: 'Söhbət',
+    dashboard: 'İdarə paneli',
+  },
+} as const;
+
+export default az;

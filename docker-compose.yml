@@ -110,6 +110,11 @@ services:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
+      args:
+        # Baked at build time — browser talks directly to published host ports.
+        VITE_CHAT_URL: ${VITE_CHAT_URL:-http://localhost:8002}
+        VITE_INGESTION_URL: ${VITE_INGESTION_URL:-http://localhost:8001}
+        VITE_ANALYTICS_URL: ${VITE_ANALYTICS_URL:-http://localhost:8003}
     ports:
       - "5173:80"
     depends_on:

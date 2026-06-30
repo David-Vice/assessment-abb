@@ -63,6 +63,15 @@ apps/web/src/modules/
 └── dashboard/ (P6)
 ```
 
+## Implementation notes (added during P5)
+
+- **Zod schemas**: hand-written in `src/lib/schemas.ts` directly from `packages/contracts` Pydantic models. No `orval` run-time generation step — contracts are small, stable, and we own both ends. TS types derived via `z.infer`.
+- **SSE reader**: custom `fetch()` + `ReadableStream` parser in `use-chat.ts`. No `@microsoft/fetch-event-source` dependency — avoids package complexity while handling all event types (token/done/error) and abort correctly.
+- **No React Router**: state-machine rendering (Zustand `corpusStatus`) drives screen selection instead of URL routing. Reduces complexity for a single-view demo. Upload → Ingesting → Chat states are all handled via conditional renders in `App.tsx`.
+- **recharts** installed now for use in P6.
+- **Dark mode**: Tailwind `darkMode: 'class'` toggled via Zustand `theme` written to `document.documentElement`.
+- **Persisted state**: Zustand `persist` middleware stores `language`, `theme`, `corpusStatus`, `jobId`, `sessionId` in `localStorage`. `corpus` object (large) stored in `localforage` (IndexedDB).
+
 ## Breakdown
 
 - **Scaffold**: finalize Vite + Tailwind + shadcn setup from P1; routing (react-router); i18next with `en`/`az`/`ru` resource files.

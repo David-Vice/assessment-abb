@@ -1,3 +1,113 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --primary: 219 85% 52%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 214 32% 95%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 214 32% 95%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 214 32% 95%;
+    --accent-foreground: 222 47% 11%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 219 85% 52%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 222 47% 7%;
+    --foreground: 210 40% 98%;
+    --card: 222 47% 11%;
+    --card-foreground: 210 40% 98%;
+    --primary: 219 85% 60%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 217 33% 17%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62% 45%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 217 33% 20%;
+    --input: 217 33% 17%;
+    --ring: 219 85% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: 'rlig' 1, 'calt' 1;
+  }
+}
+
+/* Smooth scrollbar in message list */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  @apply bg-border rounded-full;
+}
+
+/* Markdown prose resets for chat messages */
+.prose-chat p {
+  @apply mb-2 last:mb-0;
+}
+
+.prose-chat ul {
+  @apply list-disc ml-4 mb-2;
+}
+
+.prose-chat ol {
+  @apply list-decimal ml-4 mb-2;
+}
+
+.prose-chat li {
+  @apply mb-0.5;
+}
+
+.prose-chat h1,
+.prose-chat h2,
+.prose-chat h3 {
+  @apply font-semibold mb-1 mt-2;
+}
+
+.prose-chat code {
+  @apply bg-muted text-foreground px-1 py-0.5 rounded text-sm font-mono;
+}
+
+.prose-chat pre {
+  @apply bg-muted p-3 rounded mb-2 overflow-x-auto;
+}
+
+.prose-chat pre code {
+  @apply bg-transparent p-0;
+}
+
+.prose-chat a {
+  @apply text-primary underline underline-offset-2 hover:opacity-80;
+}
+
+.prose-chat strong {
+  @apply font-semibold;
+}
