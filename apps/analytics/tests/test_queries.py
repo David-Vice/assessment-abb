@@ -148,16 +148,17 @@ async def test_distribution_maps_language_and_skips_null_segment(
 
 
 @pytest.mark.asyncio
-async def test_volume_invalid_bucket_falls_back_to_day(monkeypatch: pytest.MonkeyPatch) -> None:
-    # Arrange
+async def test_volume_passes_bucket_through_to_date_trunc(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Arrange — bucket validity is enforced at the API boundary (Literal type,
+    # see test_analytics_router.py), so this layer just passes it through.
     session = _FakeSession([[SimpleNamespace(bucket=FROM, n=3)]])
     _patch(monkeypatch, session)
 
     # Act
-    result = await queries.get_volume(FROM, TO, "weekly", None)
+    result = await queries.get_volume(FROM, TO, "hour", None)
 
     # Assert
-    assert session.calls[0]["bucket"] == "day"
+    assert session.calls[0]["bucket"] == "hour"
     assert result.points[0].count == 3
 
 

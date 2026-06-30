@@ -11,9 +11,11 @@ from abb_contracts import (
     VolumeSeries,
 )
 from fastapi import APIRouter, Query, Request
+from redis.asyncio import Redis
 
 from abb_analytics import queries
 from abb_analytics.cache import cached
+from abb_analytics.queries import Bucket
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
@@ -32,7 +34,7 @@ def _resolve_range(from_ts: datetime | None, to_ts: datetime | None) -> tuple[da
     return start, end
 
 
-def _redis(request: Request) -> object:
+def _redis(request: Request) -> Redis | None:
     return getattr(request.app.state, "redis", None)
 
 
@@ -43,8 +45,18 @@ def _key(
     language: Language | None,
     extra: str = "",
 ) -> str:
+    """Build a cache key, truncated to the minute.
+
+    The client recomputes `from`/`to` as `new Date()` on every page load, so
+    millisecond precision would make every request a unique key (effectively
+    disabling the cache). Minute-granularity still keys correctly on the chosen
+    range while letting repeat loads within the same minute actually hit.
+    """
+
     lang = language.value if language is not None else "all"
-    return f"{name}:{start.isoformat()}:{end.isoformat()}:{lang}:{extra}"
+    start_key = start.strftime("%Y-%m-%dT%H:%M")
+    end_key = end.strftime("%Y-%m-%dT%H:%M")
+    return f"{name}:{start_key}:{end_key}:{lang}:{extra}"
 
 
 @router.get("/summary", response_model=AnalyticsSummary)
@@ -53,7 +65,7 @@ async def summary(
 ) -> AnalyticsSummary:
     start, end = _resolve_range(from_ts, to_ts)
     return await cached(
-        _redis(request),  # type: ignore[arg-type]
+        _redis(request),
         _key("summary", start, end, lang),
         AnalyticsSummary,
         lambda: queries.get_summary(start, end, lang),
@@ -66,11 +78,11 @@ async def volume(
     from_ts: FromParam = None,
     to_ts: ToParam = None,
     lang: LangParam = None,
-    bucket: Annotated[str, Query()] = "day",
+    bucket: Annotated[Bucket, Query()] = "day",
 ) -> VolumeSeries:
     start, end = _resolve_range(from_ts, to_ts)
     return await cached(
-        _redis(request),  # type: ignore[arg-type]
+        _redis(request),
         _key("volume", start, end, lang, bucket),
         VolumeSeries,
         lambda: queries.get_volume(start, end, bucket, lang),
@@ -82,7 +94,12 @@ async def top_questions(
     request: Request, from_ts: FromParam = None, to_ts: ToParam = None, lang: LangParam = None
 ) -> list[TopQuestion]:
     start, end = _resolve_range(from_ts, to_ts)
-    return await queries.get_top_questions(start, end, TOP_QUESTIONS_LIMIT, lang)
+    return await cached(
+        _redis(request),
+        _key("top_questions", start, end, lang),
+        list[TopQuestion],
+        lambda: queries.get_top_questions(start, end, TOP_QUESTIONS_LIMIT, lang),
+    )
 
 
 @router.get("/performance", response_model=PerformanceStats)
@@ -91,7 +108,7 @@ async def performance(
 ) -> PerformanceStats:
     start, end = _resolve_range(from_ts, to_ts)
     return await cached(
-        _redis(request),  # type: ignore[arg-type]
+        _redis(request),
         _key("performance", start, end, lang),
         PerformanceStats,
         lambda: queries.get_performance(start, end, lang),
@@ -104,7 +121,7 @@ async def quality(
 ) -> QualityStats:
     start, end = _resolve_range(from_ts, to_ts)
     return await cached(
-        _redis(request),  # type: ignore[arg-type]
+        _redis(request),
         _key("quality", start, end, lang),
         QualityStats,
         lambda: queries.get_quality(start, end, lang),
@@ -117,7 +134,7 @@ async def distribution(
 ) -> DistributionStats:
     start, end = _resolve_range(from_ts, to_ts)
     return await cached(
-        _redis(request),  # type: ignore[arg-type]
+        _redis(request),
         _key("distribution", start, end, lang),
         DistributionStats,
         lambda: queries.get_distribution(start, end, lang),

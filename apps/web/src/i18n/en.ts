@@ -51,7 +51,10 @@ const en = {
     error: 'Could not load analytics. Please try again.',
     allLanguages: 'All',
     byLanguage: 'By language',
-    bySegment: 'By segment',
+    // Counts citations, not questions: a question with 3 citations counts 3x,
+    // so totals don't sum to total_questions — it answers "what sources got
+    // used," not "what topic was asked."
+    bySegment: 'Citations by segment',
     range: {
       '24h': 'Last 24h',
       '7d': 'Last 7 days',

@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from abb_contracts import (
     AnalyticsSummary,
@@ -12,19 +12,19 @@ from abb_contracts import (
     TopQuestion,
     VolumeSeries,
 )
-from abb_rag import ExternalServiceError, session_scope
+from abb_rag import ExternalServiceError, get_logger, session_scope
 from sqlalchemy import Result, TextClause, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = get_logger(__name__)
 
 # Approximate gpt-4o pricing (USD per 1M tokens). Cost is a demo-grade estimate,
 # not billing truth; the per-row model field could refine this later.
 _USD_PER_1M_PROMPT = 2.50
 _USD_PER_1M_COMPLETION = 10.00
 
-# Bound, validated whitelist for date_trunc's first argument: Postgres only
-# accepts known units, and we never pass anything else through.
-_ALLOWED_BUCKETS = ("hour", "day")
+Bucket = Literal["hour", "day"]
 
 # Every query shares the same time-and-language predicate. `:lang` may be NULL to
 # mean "all languages" (same NULL-guard idiom as the retriever). SQL is built from
@@ -54,6 +54,10 @@ _TOP_QUESTIONS_SQL = text(
     "GROUP BY question ORDER BY n DESC, question ASC LIMIT :limit"
 )
 
+# Scoped to status = 'answered' only: guardrail declines short-circuit before
+# generation (near-zero latency, zero tokens), so mixing them in would
+# understate true model latency/cost — these KPIs answer "how does the model
+# perform when it actually generates," not "how fast is every interaction."
 _PERFORMANCE_SQL = text(
     "SELECT COALESCE(AVG(latency_ms), 0) AS avg_latency, "
     "COALESCE(percentile_cont(0.95) WITHIN GROUP (ORDER BY latency_ms), 0) AS p95_latency, "
@@ -62,6 +66,7 @@ _PERFORMANCE_SQL = text(
     "COALESCE(SUM(completion_tokens), 0) AS sum_completion "
     "FROM chat_logs "
     "WHERE created_at >= :from_ts AND created_at < :to_ts "
+    "AND status = 'answered' "
     "AND (CAST(:lang AS text) IS NULL OR language = :lang)"
 )
 
@@ -117,10 +122,8 @@ async def get_summary(
 
 
 async def get_volume(
-    from_ts: datetime, to_ts: datetime, bucket: str, language: Language | None
+    from_ts: datetime, to_ts: datetime, bucket: Bucket, language: Language | None
 ) -> VolumeSeries:
-    if bucket not in _ALLOWED_BUCKETS:
-        bucket = "day"
     params = {**_params(from_ts, to_ts, language), "bucket": bucket}
     async with session_scope() as session:
         rows = (await _execute(session, _VOLUME_SQL, params)).all()
@@ -192,4 +195,7 @@ async def _execute(
     try:
         return await session.execute(sql, params)
     except SQLAlchemyError as error:
-        raise ExternalServiceError(f"analytics query failed: {error}") from error
+        # Raw SQL/table/column detail stays server-side only — never in the
+        # client-facing message (same pattern as the chat service's _PUBLIC_DETAIL).
+        logger.error("analytics_query_failed", error=str(error))
+        raise ExternalServiceError("analytics query failed") from error

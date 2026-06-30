@@ -12,16 +12,24 @@ import {
 
 import type { TimeBucket } from '@/lib/schemas';
 import { AXIS_COLOR, CHART_COLORS, ChartCard } from './chart-card';
+import { fillBuckets } from '../lib/fill-buckets';
 
 interface VolumeChartProps {
   points: TimeBucket[];
   granularity: 'hour' | 'day';
+  from: string;
+  to: string;
 }
 
-export function VolumeChart({ points, granularity }: VolumeChartProps): React.JSX.Element {
+export function VolumeChart({
+  points,
+  granularity,
+  from,
+  to,
+}: VolumeChartProps): React.JSX.Element {
   const { t } = useTranslation();
 
-  const data = points.map((p) => ({
+  const data = fillBuckets(points, from, to, granularity).map((p) => ({
     label: formatBucket(p.bucket, granularity),
     count: p.count,
   }));
@@ -29,7 +37,7 @@ export function VolumeChart({ points, granularity }: VolumeChartProps): React.JS
   return (
     <ChartCard
       title={t('dashboard.charts.volume')}
-      isEmpty={data.length === 0}
+      isEmpty={points.length === 0}
       emptyText={t('dashboard.empty')}
     >
       <ResponsiveContainer width="100%" height="100%">
@@ -60,10 +68,12 @@ export function VolumeChart({ points, granularity }: VolumeChartProps): React.JS
   );
 }
 
+// Buckets come back from Postgres as UTC; use the UTC getters (not local-time
+// ones) or labels shift by the browser's offset (e.g. ~4h for Baku/UTC+4).
 function formatBucket(iso: string, granularity: 'hour' | 'day'): string {
   const date = new Date(iso);
   if (granularity === 'hour') {
-    return `${date.getHours()}:00`;
+    return `${date.getUTCHours()}:00`;
   }
-  return `${date.getMonth() + 1}/${date.getDate()}`;
+  return `${date.getUTCMonth() + 1}/${date.getUTCDate()}`;
 }

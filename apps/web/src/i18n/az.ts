@@ -51,7 +51,7 @@ const az = {
     error: 'Analitika yüklənmədi. Zəhmət olmasa yenidən cəhd edin.',
     allLanguages: 'Hamısı',
     byLanguage: 'Dil üzrə',
-    bySegment: 'Seqment üzrə',
+    bySegment: 'Seqment üzrə istinadlar',
     range: {
       '24h': 'Son 24 saat',
       '7d': 'Son 7 gün',

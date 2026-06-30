@@ -7,6 +7,7 @@ import type { AnalyticsSummary, PerformanceStats } from '@/lib/schemas';
 interface KpiCardsProps {
   summary?: AnalyticsSummary;
   performance?: PerformanceStats;
+  isLoading?: boolean;
 }
 
 interface Kpi {
@@ -14,7 +15,11 @@ interface Kpi {
   value: string;
 }
 
-export function KpiCards({ summary, performance }: KpiCardsProps): React.JSX.Element {
+export function KpiCards({
+  summary,
+  performance,
+  isLoading = false,
+}: KpiCardsProps): React.JSX.Element {
   const { t } = useTranslation();
 
   const kpis: Kpi[] = [
@@ -47,7 +52,14 @@ export function KpiCards({ summary, performance }: KpiCardsProps): React.JSX.Ele
         <Card key={kpi.label}>
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground">{kpi.label}</p>
-            <p className="mt-1 text-2xl font-bold tracking-tight">{kpi.value}</p>
+            {isLoading ? (
+              <span
+                className="mt-1.5 inline-block h-6 w-12 animate-pulse rounded bg-muted"
+                aria-hidden="true"
+              />
+            ) : (
+              <p className="mt-1 text-2xl font-bold tracking-tight">{kpi.value}</p>
+            )}
           </CardContent>
         </Card>
       ))}

@@ -12,6 +12,19 @@ from abb_analytics.routers.analytics import router as analytics_router
 SERVICE_NAME = "analytics"
 logger = get_logger(__name__)
 
+# Safe, generic client-facing messages — raw upstream/SQL detail stays in logs
+# only (same pattern as the chat service's _PUBLIC_DETAIL).
+_PUBLIC_DETAIL = {
+    "UPSTREAM_ERROR": "A required service is temporarily unavailable. Please try again.",
+    "VALIDATION_ERROR": "The request was invalid.",
+    "NOT_FOUND": "The requested resource was not found.",
+    "INTERNAL_ERROR": "Something went wrong. Please try again.",
+}
+
+
+def _public_detail(code: str) -> str:
+    return _PUBLIC_DETAIL.get(code, _PUBLIC_DETAIL["INTERNAL_ERROR"])
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -43,9 +56,10 @@ def create_app() -> FastAPI:
 
     @app.exception_handler(AppError)
     async def handle_app_error(_: Request, exc: AppError) -> JSONResponse:
+        logger.error("analytics_app_error", code=exc.code, detail=exc.message)
         return JSONResponse(
             status_code=exc.status_code,
-            content={"code": exc.code, "detail": exc.message},
+            content={"code": exc.code, "detail": _public_detail(exc.code)},
         )
 
     app.include_router(analytics_router)

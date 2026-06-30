@@ -97,16 +97,20 @@ async def _search(
     lang = language.value if language is not None else None
     try:
         rows = list((await session.execute(sql, {**params, "lang": lang, "limit": limit})).all())
-        # Cross-language fallback: fill only the deficit with other-language hits.
+        # Cross-language fallback: top up with other-language hits. The fallback
+        # query fetches the full `limit` (not just the deficit) because some of
+        # its top rows may overlap `rows` by id; asking for only the deficit
+        # would under-fill once those overlaps are deduped out.
         if language is not None and len(rows) < limit:
             seen = {int(row.id) for row in rows}
-            deficit = limit - len(rows)
             fallback = (
-                await session.execute(sql, {**params, "lang": None, "limit": deficit})
+                await session.execute(sql, {**params, "lang": None, "limit": limit})
             ).all()
             for row in fallback:
                 if int(row.id) not in seen:
                     rows.append(row)
+                    if len(rows) >= limit:
+                        break
     except SQLAlchemyError as error:
         raise ExternalServiceError(f"retrieval query failed: {error}") from error
     return rows

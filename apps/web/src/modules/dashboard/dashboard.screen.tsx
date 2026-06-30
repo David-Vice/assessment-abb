@@ -25,6 +25,8 @@ export function DashboardScreen({ onGoToChat }: DashboardScreenProps): React.JSX
     setPreset,
     lang,
     setLang,
+    from,
+    to,
     summary,
     performance,
     volume,
@@ -36,10 +38,12 @@ export function DashboardScreen({ onGoToChat }: DashboardScreenProps): React.JSX
   const granularity = preset === '24h' ? 'hour' : 'day';
   const hasError =
     summary.isError ||
+    performance.isError ||
     volume.isError ||
     quality.isError ||
     distribution.isError ||
     topQuestions.isError;
+  const kpisLoading = summary.isPending || performance.isPending;
 
   const headerActions = (
     <Button variant="ghost" size="sm" onClick={onGoToChat} className="gap-1.5 text-xs">
@@ -72,10 +76,19 @@ export function DashboardScreen({ onGoToChat }: DashboardScreenProps): React.JSX
             </ChartCard>
           ) : (
             <>
-              <KpiCards summary={summary.data} performance={performance.data} />
+              <KpiCards
+                summary={summary.data}
+                performance={performance.data}
+                isLoading={kpisLoading}
+              />
 
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                <VolumeChart points={volume.data?.points ?? []} granularity={granularity} />
+                <VolumeChart
+                  points={volume.data?.points ?? []}
+                  granularity={granularity}
+                  from={from}
+                  to={to}
+                />
                 <QualityChart quality={quality.data} />
                 <DistributionChart distribution={distribution.data} />
                 <TopQuestionsChart questions={topQuestions.data ?? []} />

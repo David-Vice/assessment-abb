@@ -100,8 +100,12 @@ export const QualityStatsSchema = z.object({
   error: z.number(),
 });
 
-// String-keyed (not enum-keyed) because the backend only emits the languages /
-// segments actually present; an enum-keyed record would demand every key.
+// String-keyed, not `z.record(LanguageSchema, ...)`/`z.record(SegmentSchema, ...)`:
+// Zod v4 enum-keyed records require every enum member to be present, but the
+// backend only emits keys actually present in the range (a partial dict). This
+// is a deliberate ergonomics trade-off — not a claim that Zod can't express
+// enum-keyed records with optional keys — and stays safe because the backend
+// (Pydantic) still enum-validates each key before it ever reaches the client.
 export const DistributionStatsSchema = z.object({
   by_language: z.record(z.string(), z.number()).default({}),
   by_segment: z.record(z.string(), z.number()).default({}),

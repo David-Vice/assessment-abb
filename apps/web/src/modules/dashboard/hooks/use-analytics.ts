@@ -69,6 +69,8 @@ export function useAnalytics() {
     setPreset,
     lang,
     setLang,
+    from,
+    to,
     summary,
     performance,
     volume,
