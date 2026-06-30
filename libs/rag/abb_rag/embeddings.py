@@ -45,10 +45,11 @@ async def embed_texts(texts: list[str]) -> list[list[float]]:
             f"embedding count {len(vectors)} does not match input count {len(texts)}"
         )
     expected = get_settings().embedding_dim
-    if vectors and len(vectors[0]) != expected:
-        raise ExternalServiceError(
-            f"embedding dimension {len(vectors[0])} does not match expected {expected}"
-        )
+    for i, vec in enumerate(vectors):
+        if len(vec) != expected:
+            raise ExternalServiceError(
+                f"embedding[{i}] dimension {len(vec)} does not match expected {expected}"
+            )
     return vectors
 
 

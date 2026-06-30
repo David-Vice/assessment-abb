@@ -28,8 +28,10 @@ async def set_state(redis: Redis, job_id: str, state: IngestionState) -> None:
     await redis.hset(_key(job_id), mapping={"state": state.value, "error": ""})  # type: ignore[misc]
 
 
-async def set_processed(redis: Redis, job_id: str, processed: int, total: int) -> None:
-    await redis.hset(_key(job_id), mapping={"processed": processed, "total": total})  # type: ignore[misc]
+async def set_processed(redis: Redis, job_id: str, processed: int) -> None:
+    # Only update the running count; total is fixed at init_progress (the full
+    # corpus size) so the progress bar stays consistent on partial re-ingests.
+    await redis.hset(_key(job_id), mapping={"processed": processed})  # type: ignore[misc]
 
 
 async def set_failed(redis: Redis, job_id: str, error: str) -> None:

@@ -1,9 +1,15 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { z } from 'zod';
 
-import { CHAT_URL } from '@/lib/api';
+import { CHAT_URL, getSession } from '@/lib/api';
 import { ChatResponseSchema } from '@/lib/schemas';
-import type { AnswerStatus, Citation, Language } from '@/lib/schemas';
+import type { AnswerStatus, ChatTurn, Citation, Language } from '@/lib/schemas';
 import { parseSSEBlock, splitSSEBuffer } from '@/lib/sse';
+
+// Inline schemas for the two remaining SSE event payloads — consistent with the
+// safeParse pattern already used for 'done', removes the two unchecked casts.
+const TokenPayloadSchema = z.object({ token: z.string() });
+const ErrorPayloadSchema = z.object({ detail: z.string() });
 
 export interface ChatMessage {
   id: string;
@@ -19,6 +25,34 @@ export function useChat(sessionId: string) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+
+  // Restore conversation from the backend whenever the session changes.
+  useEffect(() => {
+    let cancelled = false;
+    getSession(sessionId)
+      .then((turns: ChatTurn[]) => {
+        if (cancelled) return;
+        setMessages(
+          turns.flatMap((turn) => [
+            { id: `${turn.id}-q`, role: 'user', content: turn.question },
+            {
+              id: `${turn.id}-a`,
+              role: 'assistant',
+              content: turn.answer,
+              citations: turn.citations,
+              status: turn.status,
+            },
+          ]),
+        );
+      })
+      .catch(() => {}); // empty history on a new session is fine
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionId]);
+
+  // Cancel any in-flight stream when the component unmounts.
+  useEffect(() => () => { abortRef.current?.abort(); }, []);
 
   const clearMessages = useCallback(() => {
     abortRef.current?.abort();
@@ -54,7 +88,9 @@ export function useChat(sessionId: string) {
           signal,
         });
 
-        if (!response.body) throw new Error('No response body');
+        // A non-OK response (422, 503, …) returns JSON, not SSE — reading it as a
+        // stream would drain silently with no terminal event and freeze the bubble.
+        if (!response.ok || !response.body) throw new Error(`HTTP ${response.status}`);
 
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
@@ -68,12 +104,14 @@ export function useChat(sessionId: string) {
           try {
             payload = JSON.parse(parsed.data);
           } catch {
-            return; // malformed event — ignore
+            return; // malformed JSON — ignore
           }
 
           if (parsed.event === 'token') {
-            const token = (payload as { token: string }).token;
-            updateAssistant((m) => ({ ...m, content: m.content + token }));
+            const result = TokenPayloadSchema.safeParse(payload);
+            if (result.success) {
+              updateAssistant((m) => ({ ...m, content: m.content + result.data.token }));
+            }
           } else if (parsed.event === 'done') {
             const result = ChatResponseSchema.safeParse(payload);
             if (result.success) {
@@ -86,11 +124,12 @@ export function useChat(sessionId: string) {
                 streaming: false,
               }));
             } else {
-              // Keep whatever streamed; just end the stream cleanly.
+              // Keep whatever streamed; end cleanly.
               updateAssistant((m) => ({ ...m, streaming: false }));
             }
           } else if (parsed.event === 'error') {
-            const { detail } = payload as { detail: string };
+            const result = ErrorPayloadSchema.safeParse(payload);
+            const detail = result.success ? result.data.detail : 'chat.error';
             updateAssistant((m) => ({ ...m, error: detail, streaming: false }));
           }
         };
@@ -109,7 +148,9 @@ export function useChat(sessionId: string) {
         if (buffer.trim()) dispatch(buffer);
       } catch {
         if (!signal.aborted) {
-          updateAssistant((m) => ({ ...m, error: 'Connection error', streaming: false }));
+          // 'chat.error' is resolved by MessageBubble via i18next; server detail
+          // strings (already translated by the backend) are displayed as-is.
+          updateAssistant((m) => ({ ...m, error: 'chat.error', streaming: false }));
         }
       } finally {
         setIsStreaming(false);

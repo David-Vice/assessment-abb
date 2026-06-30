@@ -83,6 +83,20 @@ pnpm --dir apps/web install && pnpm --dir apps/web dev
 | `infra/` | `postgres/init.sql`, CI workflows |
 | `eval/` | RAGAS evaluation harness + golden set |
 
+## Database volume
+
+The Postgres schema is applied once by `init.sql` when the Docker volume is
+first created. If you have a volume from an earlier build (before the
+`chat_logs.status` CHECK constraint was added), recreate it so the constraint
+takes effect:
+
+```bash
+docker compose down -v   # drops the postgres volume
+docker compose up -d     # re-creates it and re-applies init.sql
+```
+
+Re-ingest your corpus after recreating the volume.
+
 ## Status
 
 Backend complete through **P4**: scraper → `corpus.json` (P2), the `libs/rag`

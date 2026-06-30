@@ -5,7 +5,7 @@ from collections.abc import AsyncIterator
 from typing import Any
 from uuid import UUID
 
-from abb_contracts import AnswerStatus, ChatRequest, ChatResponse, ChatTurn, Citation
+from abb_contracts import AnswerStatus, ChatRequest, ChatResponse, ChatTurn, Citation, Language
 from abb_rag import AppError, get_logger, get_settings, retrieve, session_scope
 from fastapi import APIRouter, Request
 from sse_starlette.sse import EventSourceResponse
@@ -13,6 +13,7 @@ from sse_starlette.sse import EventSourceResponse
 from abb_chat.context import build_context, to_citations
 from abb_chat.generation import TokenUsage, stream_answer
 from abb_chat.guardrail import Verdict, classify
+from abb_chat.lang_detect import auto_language
 from abb_chat.memory import load_history, rewrite_query
 from abb_chat.persistence import fetch_recent_turns, insert_chat_log
 from abb_chat.prompts import off_topic_refusal
@@ -58,24 +59,36 @@ async def _chat_events(request: Request, body: ChatRequest) -> AsyncIterator[dic
     status = AnswerStatus.ANSWERED
     persisted = False
 
+    # Detect language from the question text; fall back to the UI-selected language
+    # when the question is too short or ambiguous. This runs once per request so
+    # each question responds in its own language independently.
+    effective_language = auto_language(body.question, hint=body.language)
+
     try:
         verdict = await classify(body.question)
         if verdict is not Verdict.ON_TOPIC:
             status = _DECLINED_STATUS[verdict]
-            refusal = off_topic_refusal(body.language)
+            refusal = off_topic_refusal(effective_language)
             answer_parts.append(refusal)
-            logger.info("chat_declined", verdict=verdict.value, language=body.language.value)
+            logger.info(
+                "chat_declined",
+                verdict=verdict.value,
+                language=effective_language.value,
+                ui_language=body.language.value,
+            )
             yield _event("token", {"token": refusal})
         else:
             history = await load_history(body.session_id) if settings.chat_memory_enabled else []
             search_query = await rewrite_query(body.question, history) if history else body.question
             async with session_scope() as session:
-                chunks = await retrieve(session, search_query, body.language)
+                chunks = await retrieve(session, search_query, effective_language)
             retrieved_ids = [chunk.chunk_id for chunk in chunks]
             citations = to_citations(chunks)
             context = build_context(chunks, settings.context_token_budget)
 
-            async for token in stream_answer(body.question, body.language, context, history, usage):
+            async for token in stream_answer(
+                body.question, effective_language, context, history, usage
+            ):
                 if await request.is_disconnected():
                     break
                 answer_parts.append(token)
@@ -87,6 +100,7 @@ async def _chat_events(request: Request, body: ChatRequest) -> AsyncIterator[dic
             chat_log_id = await asyncio.shield(
                 _persist(
                     body,
+                    effective_language,
                     answer_parts,
                     status,
                     citations,
@@ -123,6 +137,7 @@ async def _chat_events(request: Request, body: ChatRequest) -> AsyncIterator[dic
                 await asyncio.shield(
                     _persist(
                         body,
+                        effective_language,
                         answer_parts,
                         status,
                         citations,
@@ -138,6 +153,7 @@ async def _chat_events(request: Request, body: ChatRequest) -> AsyncIterator[dic
 
 async def _persist(
     body: ChatRequest,
+    language: Language,
     answer_parts: list[str],
     status: AnswerStatus,
     citations: list[Citation],
@@ -152,7 +168,7 @@ async def _persist(
         session_id=body.session_id,
         question=body.question,
         answer="".join(answer_parts),
-        language=body.language,
+        language=language,
         status=status,
         citations=citations,
         retrieved_ids=retrieved_ids,

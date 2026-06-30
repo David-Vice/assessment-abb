@@ -17,6 +17,7 @@ export function useIngestion(): UseIngestionResult {
   const setJobId = useAppStore((s) => s.setJobId);
   const setCorpusStatus = useAppStore((s) => s.setCorpusStatus);
   const setDocCount = useAppStore((s) => s.setDocCount);
+  const setIngestionError = useAppStore((s) => s.setIngestionError);
 
   const mutation = useMutation({
     mutationFn: postIngest,
@@ -43,7 +44,8 @@ export function useIngestion(): UseIngestionResult {
       setCorpusStatus('ready');
       setJobId(null);
     } else if (state === 'failed') {
-      setCorpusStatus('none');
+      setCorpusStatus('failed');
+      setIngestionError(poll.data?.error ?? 'upload.failed');
       setJobId(null);
     }
   }, [poll.data?.state, poll.data?.total, setCorpusStatus, setDocCount, setJobId]);

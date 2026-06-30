@@ -100,12 +100,13 @@ async def _search(
         # Cross-language fallback: fill only the deficit with other-language hits.
         if language is not None and len(rows) < limit:
             seen = {int(row.id) for row in rows}
-            fallback = (await session.execute(sql, {**params, "lang": None, "limit": limit})).all()
+            deficit = limit - len(rows)
+            fallback = (
+                await session.execute(sql, {**params, "lang": None, "limit": deficit})
+            ).all()
             for row in fallback:
                 if int(row.id) not in seen:
                     rows.append(row)
-                    if len(rows) >= limit:
-                        break
     except SQLAlchemyError as error:
         raise ExternalServiceError(f"retrieval query failed: {error}") from error
     return rows

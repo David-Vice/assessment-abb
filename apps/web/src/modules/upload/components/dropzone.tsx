@@ -129,7 +129,7 @@ export function Dropzone({
             inputRef.current?.click();
           }}
         >
-          Try again
+          {t('upload.tryAgain')}
         </Button>
       )}
     </div>

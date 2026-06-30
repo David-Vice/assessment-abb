@@ -19,6 +19,7 @@ const en = {
     documents: '{{count}} documents',
     progress: '{{processed}} / {{total}} documents indexed',
     failed: 'Indexing failed. Please try again.',
+    tryAgain: 'Try again',
     errorDetail: 'Error: {{message}}',
     alreadyReady: 'Corpus already indexed.',
   },
@@ -29,9 +30,6 @@ const en = {
     thinking: 'ABB Assistant is thinking…',
     citations: 'Sources',
     suggestedTitle: 'Try asking:',
-    offTopic: 'This question is outside my scope. I can only answer questions about ABB Bank.',
-    injection:
-      'I detected a potential injection attempt. Please ask a genuine question about ABB Bank.',
     error: 'Something went wrong. Please try again.',
     suggested: [
       "What are ABB Bank's main services?",

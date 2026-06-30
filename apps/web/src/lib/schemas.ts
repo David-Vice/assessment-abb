@@ -10,8 +10,11 @@ export const AnswerStatusSchema = z.enum([
 ]);
 export const IngestionStateSchema = z.enum(['queued', 'running', 'completed', 'failed']);
 
+// Mirrors the backend Pydantic Citation.url = Field(pattern=r"^https?://").
+const HTTP_URL = z.string().regex(/^https?:\/\//);
+
 export const CitationSchema = z.object({
-  url: z.string(),
+  url: HTTP_URL,
   title: z.string().nullable().optional(),
   language: LanguageSchema,
   segment: SegmentSchema.default('other'),
@@ -23,6 +26,18 @@ export const ChatResponseSchema = z.object({
   answer: z.string(),
   status: AnswerStatusSchema,
   citations: z.array(CitationSchema).default([]),
+});
+
+// Mirrors the backend ChatTurn contract (used for session hydration).
+export const ChatTurnSchema = z.object({
+  id: z.number(),
+  session_id: z.string(),
+  question: z.string(),
+  answer: z.string(),
+  language: LanguageSchema.nullable().optional(),
+  status: AnswerStatusSchema,
+  citations: z.array(CitationSchema).default([]),
+  created_at: z.string(),
 });
 
 export const IngestionJobSchema = z.object({
@@ -39,7 +54,7 @@ export const IngestionStatusSchema = z.object({
 });
 
 export const CorpusDocumentSchema = z.object({
-  url: z.string(),
+  url: HTTP_URL,
   language: LanguageSchema,
   segment: SegmentSchema.default('other'),
   title: z.string().nullable().optional(),
@@ -61,6 +76,7 @@ export type AnswerStatus = z.infer<typeof AnswerStatusSchema>;
 export type IngestionState = z.infer<typeof IngestionStateSchema>;
 export type Citation = z.infer<typeof CitationSchema>;
 export type ChatResponse = z.infer<typeof ChatResponseSchema>;
+export type ChatTurn = z.infer<typeof ChatTurnSchema>;
 export type IngestionJob = z.infer<typeof IngestionJobSchema>;
 export type IngestionStatus = z.infer<typeof IngestionStatusSchema>;
 export type CorpusDocument = z.infer<typeof CorpusDocumentSchema>;

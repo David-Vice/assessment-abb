@@ -19,6 +19,7 @@ const az = {
     documents: '{{count}} sənəd',
     progress: '{{processed}} / {{total}} sənəd indeksləndi',
     failed: 'İndeksləmə uğursuz oldu. Zəhmət olmasa yenidən cəhd edin.',
+    tryAgain: 'Yenidən cəhd edin',
     errorDetail: 'Xəta: {{message}}',
     alreadyReady: 'Corpus artıq indekslənib.',
   },
@@ -29,10 +30,6 @@ const az = {
     thinking: 'ABB Köməkçisi düşünür…',
     citations: 'Mənbələr',
     suggestedTitle: 'Bunları soruşmağa cəhd edin:',
-    offTopic:
-      'Bu sual mənim mövzu dairəmdən kənardır. Yalnız ABB Bankı haqqında suallara cavab verə bilərəm.',
-    injection:
-      'Potensial inyeksiya cəhdi aşkar edildi. Zəhmət olmasa ABB Bankı haqqında həqiqi sual verin.',
     error: 'Nə isə səhv getdi. Zəhmət olmasa yenidən cəhd edin.',
     suggested: [
       'ABB Bankın əsas xidmətləri hansılardır?',

@@ -3,9 +3,11 @@ import * as React from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
-import type { Citation } from '@/lib/schemas';
+import type { Citation, Segment } from '@/lib/schemas';
 
-const SEGMENT_COLORS: Record<string, string> = {
+// Typed as Record<Segment, string> so adding a new segment enum member is a
+// compile-time error here rather than a silent runtime miss.
+const SEGMENT_COLORS: Record<Segment, string> = {
   individuals: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
   business: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
   about: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',

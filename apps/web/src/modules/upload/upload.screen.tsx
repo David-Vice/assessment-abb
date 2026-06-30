@@ -14,7 +14,8 @@ import { useIngestion } from './hooks/use-ingestion';
 export function UploadScreen(): React.JSX.Element {
   const { t } = useTranslation();
   const corpusStatus = useAppStore((s) => s.corpusStatus);
-  const docCount = useAppStore((s) => s.docCount);
+  const ingestionError = useAppStore((s) => s.ingestionError);
+  const resetCorpus = useAppStore((s) => s.resetCorpus);
 
   const { processFile, uploadState, corpus, error, reset } = useCorpus();
   const { start, status, isStarting, startError } = useIngestion();
@@ -26,7 +27,13 @@ export function UploadScreen(): React.JSX.Element {
     }
   };
 
+  const handleRetry = () => {
+    resetCorpus();
+    reset();
+  };
+
   const isIngesting = corpusStatus === 'ingesting';
+  const isFailed = corpusStatus === 'failed';
 
   return (
     <div className="flex flex-col h-screen">
@@ -53,7 +60,16 @@ export function UploadScreen(): React.JSX.Element {
             </CardHeader>
 
             <CardContent>
-              {isIngesting ? (
+              {isFailed ? (
+                <div className="flex flex-col items-center gap-4 py-6 text-center">
+                  <p className="text-sm text-destructive">
+                    {t(ingestionError ?? 'upload.failed', { defaultValue: ingestionError ?? t('upload.failed') })}
+                  </p>
+                  <Button variant="outline" size="sm" onClick={handleRetry}>
+                    {t('upload.tryAgain')}
+                  </Button>
+                </div>
+              ) : isIngesting ? (
                 <IngestionProgress status={status} />
               ) : (
                 <Dropzone
@@ -64,12 +80,11 @@ export function UploadScreen(): React.JSX.Element {
                 />
               )}
 
-              {/* Error from mutation */}
-              {startError && !isIngesting && (
+              {/* Error from mutation (e.g. network failure before job is queued) */}
+              {startError && !isIngesting && !isFailed && (
                 <p className="mt-3 text-xs text-destructive text-center">{startError}</p>
               )}
 
-              {/* Loading indicator on ingest start */}
               {isStarting && (
                 <p className="mt-3 text-xs text-muted-foreground text-center animate-pulse">
                   {t('upload.uploading')}
@@ -77,23 +92,6 @@ export function UploadScreen(): React.JSX.Element {
               )}
             </CardContent>
           </Card>
-
-          {/* Re-upload when already ready */}
-          {corpusStatus === 'ready' && (
-            <div className="text-center space-y-3">
-              <p className="text-sm text-muted-foreground">{t('upload.alreadyReady')}</p>
-              <p className="text-xs text-muted-foreground">
-                {t('upload.documents', { count: docCount })}
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={reset}
-              >
-                {t('upload.reUpload')}
-              </Button>
-            </div>
-          )}
         </div>
       </main>
     </div>

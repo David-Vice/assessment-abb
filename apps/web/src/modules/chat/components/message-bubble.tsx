@@ -1,7 +1,9 @@
 import * as React from 'react';
 import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
+import rehypeSanitize from 'rehype-sanitize';
 import remarkGfm from 'remark-gfm';
+import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -13,6 +15,7 @@ interface MessageBubbleProps {
 }
 
 export function MessageBubble({ message }: MessageBubbleProps): React.JSX.Element {
+  const { t } = useTranslation();
   const [showCitations, setShowCitations] = useState(false);
   const isUser = message.role === 'user';
   const isDeclined =
@@ -47,12 +50,16 @@ export function MessageBubble({ message }: MessageBubbleProps): React.JSX.Elemen
               <span className="h-1.5 w-1.5 rounded-full bg-current animate-bounce" />
             </span>
           ) : message.error ? (
-            <p>{message.error}</p>
+            // i18n keys (e.g. 'chat.error') are resolved by t(); server detail
+            // strings (plain text, not in the dictionary) fall back to themselves.
+            <p>{t(message.error, { defaultValue: message.error })}</p>
           ) : isUser ? (
             <p className="whitespace-pre-wrap">{message.content}</p>
           ) : (
             <div className="prose-chat">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
+              <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]}>
+                {message.content}
+              </ReactMarkdown>
             </div>
           )}
         </div>

@@ -20,8 +20,8 @@ async def ingest_corpus_job(ctx: dict[str, Any], corpus_data: dict[str, Any]) ->
     logger.info("ingest_job_started", job_id=job_id, documents=len(corpus.documents))
     await set_state(redis, job_id, IngestionState.RUNNING)
 
-    async def on_progress(done: int, total: int) -> None:
-        await set_processed(redis, job_id, done, total)
+    async def on_progress(done: int, _total: int) -> None:
+        await set_processed(redis, job_id, done)
 
     try:
         indexed = await ingest_corpus(corpus, on_progress=on_progress)

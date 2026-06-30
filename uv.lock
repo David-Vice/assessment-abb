@@ -56,6 +56,7 @@ dependencies = [
     { name = "fastapi" },
     { name = "langchain-core" },
     { name = "langchain-openai" },
+    { name = "py3langid" },
     { name = "sse-starlette" },
     { name = "uvicorn", extra = ["standard"] },
 ]
@@ -73,6 +74,7 @@ requires-dist = [
     { name = "fastapi", specifier = ">=0.115" },
     { name = "langchain-core", specifier = ">=0.3" },
     { name = "langchain-openai", specifier = ">=0.2" },
+    { name = "py3langid", specifier = ">=0.2" },
     { name = "sse-starlette", specifier = ">=2.1" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.32" },
 ]
