@@ -8,10 +8,12 @@ from sqlalchemy import Row, text
 
 _INSERT = text(
     "INSERT INTO chat_logs "
-    "(session_id, question, answer, language, status, citations, retrieved_ids, model, latency_ms) "
+    "(session_id, question, answer, language, status, citations, retrieved_ids, "
+    "model, prompt_tokens, completion_tokens, latency_ms) "
     "VALUES "
     "(CAST(:session_id AS uuid), :question, :answer, :language, :status, "
-    "CAST(:citations AS jsonb), :retrieved_ids, :model, :latency_ms) "
+    "CAST(:citations AS jsonb), :retrieved_ids, "
+    ":model, :prompt_tokens, :completion_tokens, :latency_ms) "
     "RETURNING id"
 )
 
@@ -32,6 +34,8 @@ async def insert_chat_log(
     citations: list[Citation],
     retrieved_ids: list[int],
     model: str,
+    prompt_tokens: int,
+    completion_tokens: int,
     latency_ms: int,
 ) -> int:
     """Persist a Q/A turn (with citations + timestamp) and return its id."""
@@ -49,6 +53,8 @@ async def insert_chat_log(
                 "citations": citations_json,
                 "retrieved_ids": retrieved_ids,
                 "model": model,
+                "prompt_tokens": prompt_tokens,
+                "completion_tokens": completion_tokens,
                 "latency_ms": latency_ms,
             },
         )

@@ -25,6 +25,10 @@ async def classify(question: str) -> Verdict:
     label = message_text(response.content).strip().upper()
     if "INJECTION" in label:
         return Verdict.INJECTION
-    if "OFF" in label and "TOPIC" in label:
+    if "OFF_TOPIC" in label:
         return Verdict.OFF_TOPIC
-    return Verdict.ON_TOPIC
+    if "ON_TOPIC" in label:
+        return Verdict.ON_TOPIC
+    # Fail closed: a bank safety gate must decline on any unrecognized output
+    # (model degradation/garbled label) rather than let the question through.
+    return Verdict.OFF_TOPIC

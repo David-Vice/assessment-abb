@@ -52,7 +52,8 @@ CREATE TABLE IF NOT EXISTS chat_logs (
     answer            TEXT NOT NULL,
     language          TEXT CHECK (language IN ('az', 'en', 'ru')),
     status            TEXT NOT NULL DEFAULT 'answered'
-                          CHECK (status IN ('answered', 'declined_off_topic', 'error')),
+                          CHECK (status IN ('answered', 'declined_off_topic',
+                                            'declined_injection', 'error')),
     citations         JSONB NOT NULL DEFAULT '[]',
     retrieved_ids     BIGINT[] NOT NULL DEFAULT '{}',
     model             TEXT,

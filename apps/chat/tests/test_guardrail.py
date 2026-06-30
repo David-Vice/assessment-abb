@@ -20,7 +20,8 @@ class _FakeAuxModel:
         ("ON_TOPIC", Verdict.ON_TOPIC),
         ("OFF_TOPIC", Verdict.OFF_TOPIC),
         ("INJECTION", Verdict.INJECTION),
-        ("something unexpected", Verdict.ON_TOPIC),
+        # Fail closed: unrecognized labels decline rather than pass through.
+        ("something unexpected", Verdict.OFF_TOPIC),
     ],
 )
 async def test_classify_maps_model_label(

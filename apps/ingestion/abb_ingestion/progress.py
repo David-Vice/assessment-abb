@@ -24,7 +24,8 @@ async def init_progress(redis: Redis, job_id: str, total: int) -> None:
 
 
 async def set_state(redis: Redis, job_id: str, state: IngestionState) -> None:
-    await redis.hset(_key(job_id), mapping={"state": state.value})  # type: ignore[misc]
+    # Clear any prior error so a successful (re)run never surfaces stale failure text.
+    await redis.hset(_key(job_id), mapping={"state": state.value, "error": ""})  # type: ignore[misc]
 
 
 async def set_processed(redis: Redis, job_id: str, processed: int, total: int) -> None:

@@ -19,6 +19,8 @@ def get_chat_model() -> ChatOpenAI:
         temperature=CHAT_TEMPERATURE,
         timeout=REQUEST_TIMEOUT_SECONDS,
         max_retries=MAX_RETRIES,
+        # Emit a final usage chunk while streaming so we can persist token counts.
+        stream_usage=True,
     )
 
 

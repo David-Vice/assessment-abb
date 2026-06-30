@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from abb_contracts import ChatTurn
+from abb_contracts import AnswerStatus, ChatTurn
 from abb_rag import ExternalServiceError
 from langchain_core.messages import HumanMessage, SystemMessage
 
@@ -8,12 +8,15 @@ from abb_chat.llm import get_aux_model, message_text
 from abb_chat.persistence import fetch_recent_turns
 from abb_chat.prompts import QUERY_REWRITE_SYSTEM
 
-# Last 3 Q/A pairs — enough for follow-ups without unbounded context.
+# Up to 6 recent answered turns — enough for follow-ups without unbounded context.
 RECENT_TURNS_LIMIT = 6
 
 
 async def load_history(session_id: UUID) -> list[ChatTurn]:
-    return await fetch_recent_turns(session_id, RECENT_TURNS_LIMIT)
+    """Recent answered turns only — refusals/errors are not trustworthy context."""
+
+    turns = await fetch_recent_turns(session_id, RECENT_TURNS_LIMIT)
+    return [turn for turn in turns if turn.status is AnswerStatus.ANSWERED and turn.answer.strip()]
 
 
 async def rewrite_query(question: str, history: list[ChatTurn]) -> str:

@@ -19,7 +19,9 @@ class Settings(BaseSettings):
 
     retrieval_candidates: int = 40
     retrieval_top_k: int = 6
-    rerank_enabled: bool = True
+    # Off by default: the reranker (torch) is an optional build extra, so the
+    # default must not assume it is installed. Enable with INSTALL_RERANK + this.
+    rerank_enabled: bool = False
     rerank_model: str = "BAAI/bge-reranker-v2-m3"
     context_token_budget: int = 8000
     chat_memory_enabled: bool = True

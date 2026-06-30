@@ -24,4 +24,5 @@ class IngestionState(StrEnum):
 class AnswerStatus(StrEnum):
     ANSWERED = "answered"
     DECLINED_OFF_TOPIC = "declined_off_topic"
+    DECLINED_INJECTION = "declined_injection"
     ERROR = "error"

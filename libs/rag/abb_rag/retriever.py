@@ -1,3 +1,4 @@
+import re
 from typing import Any
 
 from abb_contracts import Language, Segment
@@ -14,6 +15,25 @@ from abb_rag.vectorstore import to_halfvec
 
 logger = get_logger(__name__)
 
+_WORD_RE = re.compile(r"\w+", re.UNICODE)
+# Sentinel used when a query has no word characters, so to_tsquery never sees an
+# empty string (which would error) — it simply matches nothing.
+_NO_MATCH = "zzznomatchzzz"
+
+
+def _or_tsquery(query: str) -> str:
+    """Build an OR-of-terms tsquery (`a | b | c`) from a natural-language query.
+
+    `websearch_to_tsquery` AND-combines terms and the `simple` config keeps
+    stopwords, so a conversational question ("how can I get a card") matches
+    almost nothing. OR semantics restore real sparse recall while staying
+    language-uniform (no stemmer). Terms feed `to_tsquery` as a bound parameter.
+    """
+
+    terms = _WORD_RE.findall(query.lower())
+    return " | ".join(terms) if terms else _NO_MATCH
+
+
 _DENSE_SQL = text(
     "SELECT c.id, c.content, c.language, c.segment, d.url, d.title "
     "FROM chunks c JOIN documents d ON d.id = c.document_id "
@@ -23,16 +43,16 @@ _DENSE_SQL = text(
 )
 
 # Sparse = uniform 'simple'+unaccent full-text (equal for az/ru/en) widened by
-# pg_trgm word-similarity for typos/inflections. The `<%` operator (over the
-# immutable_unaccent(content) trigram index) is index-usable; word_similarity in
-# ORDER BY only scores the already-matched rows. No language stemmer is used.
+# pg_trgm word-similarity for typos/inflections. OR-of-terms (`:tsq`) gives real
+# recall on conversational queries; the `<%` operator (over the
+# immutable_unaccent(content) trigram index) is index-usable. No language stemmer.
 _SPARSE_SQL = text(
     "SELECT c.id, c.content, c.language, c.segment, d.url, d.title "
     "FROM chunks c JOIN documents d ON d.id = c.document_id "
     "WHERE (CAST(:lang AS text) IS NULL OR c.language = :lang) AND ("
-    "  c.tsv @@ websearch_to_tsquery('simple', immutable_unaccent(:q)) "
+    "  c.tsv @@ to_tsquery('simple', immutable_unaccent(:tsq)) "
     "  OR immutable_unaccent(:q) <% immutable_unaccent(c.content)) "
-    "ORDER BY ts_rank(c.tsv, websearch_to_tsquery('simple', immutable_unaccent(:q))) DESC, "
+    "ORDER BY ts_rank(c.tsv, to_tsquery('simple', immutable_unaccent(:tsq))) DESC, "
     "  word_similarity(immutable_unaccent(:q), immutable_unaccent(c.content)) DESC "
     "LIMIT :limit"
 )
@@ -50,7 +70,9 @@ async def hybrid_search(
     dense = await _search(
         session, _DENSE_SQL, {"qemb": to_halfvec(query_embedding)}, language, candidates
     )
-    sparse = await _search(session, _SPARSE_SQL, {"q": query}, language, candidates)
+    sparse = await _search(
+        session, _SPARSE_SQL, {"q": query, "tsq": _or_tsquery(query)}, language, candidates
+    )
 
     rows_by_id: dict[int, Row[Any]] = {int(row.id): row for row in (*dense, *sparse)}
     scores = reciprocal_rank_fusion([[int(r.id) for r in dense], [int(r.id) for r in sparse]])

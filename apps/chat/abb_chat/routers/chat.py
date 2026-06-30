@@ -11,7 +11,7 @@ from fastapi import APIRouter, Request
 from sse_starlette.sse import EventSourceResponse
 
 from abb_chat.context import build_context, to_citations
-from abb_chat.generation import stream_answer
+from abb_chat.generation import TokenUsage, stream_answer
 from abb_chat.guardrail import Verdict, classify
 from abb_chat.memory import load_history, rewrite_query
 from abb_chat.persistence import fetch_recent_turns, insert_chat_log
@@ -22,6 +22,20 @@ router = APIRouter(tags=["chat"])
 
 SSE_PING_SECONDS = 15
 SESSION_HISTORY_LIMIT = 50
+
+_DECLINED_STATUS = {
+    Verdict.OFF_TOPIC: AnswerStatus.DECLINED_OFF_TOPIC,
+    Verdict.INJECTION: AnswerStatus.DECLINED_INJECTION,
+}
+
+# Safe, generic client-facing messages — raw upstream/SQL detail stays in logs.
+_PUBLIC_DETAIL = {
+    "UPSTREAM_ERROR": "A required service is temporarily unavailable. Please try again.",
+    "VALIDATION_ERROR": "The request was invalid.",
+    "NOT_FOUND": "The requested resource was not found.",
+    "PERSIST_FAILED": "The answer could not be saved. Please try again.",
+    "INTERNAL_ERROR": "An unexpected error occurred. Please try again.",
+}
 
 
 @router.post("/chat")
@@ -40,79 +54,117 @@ async def _chat_events(request: Request, body: ChatRequest) -> AsyncIterator[dic
     answer_parts: list[str] = []
     citations: list[Citation] = []
     retrieved_ids: list[int] = []
+    usage = TokenUsage()
     status = AnswerStatus.ANSWERED
+    persisted = False
 
     try:
         verdict = await classify(body.question)
         if verdict is not Verdict.ON_TOPIC:
-            status = AnswerStatus.DECLINED_OFF_TOPIC
+            status = _DECLINED_STATUS[verdict]
             refusal = off_topic_refusal(body.language)
             answer_parts.append(refusal)
             logger.info("chat_declined", verdict=verdict.value, language=body.language.value)
             yield _event("token", {"token": refusal})
-            return
+        else:
+            history = await load_history(body.session_id) if settings.chat_memory_enabled else []
+            search_query = await rewrite_query(body.question, history) if history else body.question
+            async with session_scope() as session:
+                chunks = await retrieve(session, search_query, body.language)
+            retrieved_ids = [chunk.chunk_id for chunk in chunks]
+            citations = to_citations(chunks)
+            context = build_context(chunks, settings.context_token_budget)
 
-        history = await load_history(body.session_id) if settings.chat_memory_enabled else []
-        search_query = await rewrite_query(body.question, history) if history else body.question
-        async with session_scope() as session:
-            chunks = await retrieve(session, search_query, body.language)
-        retrieved_ids = [chunk.chunk_id for chunk in chunks]
-        citations = to_citations(chunks)
-        context = build_context(chunks, settings.context_token_budget)
+            async for token in stream_answer(body.question, body.language, context, history, usage):
+                if await request.is_disconnected():
+                    break
+                answer_parts.append(token)
+                yield _event("token", {"token": token})
 
-        async for token in stream_answer(body.question, body.language, context, history):
-            if await request.is_disconnected():
-                break
-            answer_parts.append(token)
-            yield _event("token", {"token": token})
+        # Success path: persist, then emit the single terminal `done` event.
+        # Skipped if the client already left — the `finally` still persists.
+        if not await request.is_disconnected():
+            chat_log_id = await asyncio.shield(
+                _persist(
+                    body,
+                    answer_parts,
+                    status,
+                    citations,
+                    retrieved_ids,
+                    usage,
+                    started,
+                    settings.chat_model,
+                )
+            )
+            persisted = True
+            done = ChatResponse(
+                chat_log_id=chat_log_id,
+                answer="".join(answer_parts),
+                status=status,
+                citations=citations,
+            )
+            yield _event("done", done.model_dump(mode="json"))
     except AppError as error:
         status = AnswerStatus.ERROR
         logger.error("chat_failed", code=error.code, detail=error.message)
-        yield _event("error", {"code": error.code, "detail": error.message})
-    except Exception as error:  # last-resort guard: logged and surfaced as a generic error
+        yield _event("error", {"code": error.code, "detail": _public_detail(error.code)})
+    except Exception as error:  # last-resort guard: logged and surfaced generically
         status = AnswerStatus.ERROR
         logger.error("chat_unexpected", error=str(error))
-        yield _event("error", {"code": "INTERNAL_ERROR", "detail": "unexpected error"})
-    finally:
-        answer = "".join(answer_parts)
-        latency_ms = int((time.monotonic() - started) * 1000)
-        # Shielded so a mid-stream disconnect still persists the turn.
-        chat_log_id = await asyncio.shield(
-            _persist(
-                body, answer, status, citations, retrieved_ids, latency_ms, settings.chat_model
-            )
+        yield _event(
+            "error", {"code": "INTERNAL_ERROR", "detail": _public_detail("INTERNAL_ERROR")}
         )
-        if not await request.is_disconnected():
-            done = ChatResponse(
-                chat_log_id=chat_log_id, answer=answer, status=status, citations=citations
-            )
-            yield _event("done", done.model_dump(mode="json"))
+    finally:
+        # Persist the turn if the success path didn't (client disconnect or error),
+        # shielded so a disconnect cancellation can't drop the audit record. No
+        # `yield` here — terminal events are emitted above, never from `finally`.
+        if not persisted:
+            try:
+                await asyncio.shield(
+                    _persist(
+                        body,
+                        answer_parts,
+                        status,
+                        citations,
+                        retrieved_ids,
+                        usage,
+                        started,
+                        settings.chat_model,
+                    )
+                )
+            except Exception as error:
+                logger.error("chat_persist_failed", error=str(error))
 
 
 async def _persist(
     body: ChatRequest,
-    answer: str,
+    answer_parts: list[str],
     status: AnswerStatus,
     citations: list[Citation],
     retrieved_ids: list[int],
-    latency_ms: int,
+    usage: TokenUsage,
+    started: float,
     model: str,
 ) -> int:
-    try:
-        return await insert_chat_log(
-            session_id=body.session_id,
-            question=body.question,
-            answer=answer,
-            language=body.language,
-            status=status,
-            citations=citations,
-            retrieved_ids=retrieved_ids,
-            model=model,
-            latency_ms=latency_ms,
-        )
-    except Exception as error:  # persistence failures must not break the response
-        logger.error("chat_persist_failed", error=str(error))
-        return 0
+    """Persist a turn; raises on failure so the caller can surface it (fail loud)."""
+
+    return await insert_chat_log(
+        session_id=body.session_id,
+        question=body.question,
+        answer="".join(answer_parts),
+        language=body.language,
+        status=status,
+        citations=citations,
+        retrieved_ids=retrieved_ids,
+        model=model,
+        prompt_tokens=usage.prompt_tokens,
+        completion_tokens=usage.completion_tokens,
+        latency_ms=int((time.monotonic() - started) * 1000),
+    )
+
+
+def _public_detail(code: str) -> str:
+    return _PUBLIC_DETAIL.get(code, _PUBLIC_DETAIL["INTERNAL_ERROR"])
 
 
 def _event(event: str, data: dict[str, Any]) -> dict[str, str]:
