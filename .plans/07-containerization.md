@@ -35,8 +35,12 @@ Efficiency / Code Quality criteria.
    - Rationale: `uv run` as PID 1 swallowed SIGTERM, forcing ~150s SIGKILL waits on `compose down`. Exec-form + tini delivers the signal so uvicorn/arq stop in ~1s.
 
 4. **Redis token-bucket rate limiting** ✅ done
-   - Decision: `RateLimitMiddleware` on chat + ingestion (per-IP, fixed 60s window), limits from `RATE_LIMIT_PER_MINUTE`. Skips `/health`; degrades gracefully if Redis is unavailable.
-   - Rationale: Decision 8; security awareness; protects OpenAI spend.
+   - Decision: `RateLimitMiddleware` on chat + ingestion — **POST only** (chat
+     messages + corpus upload starts). GET polling and session hydration are excluded.
+     Per-IP fixed 60s window; default `DEFAULT_RATE_LIMIT_PER_MINUTE=10` in
+     `libs/rag/abb_rag/settings.py`, overridable via `RATE_LIMIT_PER_MINUTE`.
+     Skips `/health`; degrades gracefully if Redis is unavailable.
+   - Rationale: Decision 8; protects OpenAI spend without breaking ingestion polling.
 
 5. **CI completes the quality gate** ✅ done
    - Decision: GitHub Actions: lint (ruff/eslint) → type (mypy/tsc) → test (pytest with pg+redis service containers + `init.sql`; vitest) → `docker compose build`. PR-blocking.

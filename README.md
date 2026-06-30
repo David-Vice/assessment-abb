@@ -99,8 +99,9 @@ Re-ingest your corpus after recreating the volume.
 
 ## Status
 
-**P1–P7 complete.** Scraper → `corpus.json` (P2), `libs/rag` retrieval core (P3),
+**P1–P8 complete.** Scraper → `corpus.json` (P2), `libs/rag` retrieval core (P3),
 three FastAPI microservices with SSE chat, guardrails, async ingestion, and analytics
 (P4), React SPA with upload, streaming chat, and i18n (P5), recharts dashboard (P6),
-and containerization with Redis rate limiting + CI image builds (P7). Next: **P8**
-(RAGAS eval + docs). See [`.plans/00-master-plan.md`](.plans/00-master-plan.md).
+containerization with Redis POST-only rate limiting + CI image builds (P7), and RAGAS
+eval harness plus architecture/demo docs (P8). See [`.plans/00-master-plan.md`](.plans/00-master-plan.md),
+[`ARCHITECTURE.md`](ARCHITECTURE.md), and [`DEMO.md`](DEMO.md).
