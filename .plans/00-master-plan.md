@@ -45,7 +45,7 @@ traceability matrix. Each phase has its own plan file (`01`–`08`) carrying the
 | 3 | Service granularity | **3 services: chat, ingestion, analytics** + Postgres + Redis | Genuine boundaries with distinct runtime profiles; right-sized for one week. **`chat-service` is explicitly THE brief-mandated "question-handling & response-generation microservice"** (JSON contract `ChatRequest→ChatResponse`); the other two are sibling services. |
 | 3a | Ingestion execution | **Async via Redis-backed worker** (`arq`) | Embedding a full site is long-running; endpoint returns `job_id`, frontend polls progress. Redis also serves cache + rate-limit. |
 | 4 | Vector store | **Postgres 16 + pgvector** (HNSW + `tsvector`/GIN) | One datastore for vectors *and* chat logs; hybrid search in a single query; bank-grade ACID/audit. |
-| 5 | Reranking | **Local BGE cross-encoder** (`BAAI/bge-reranker-v2-m3`) via LangChain `ContextualCompressionRetriever` | Highest-ROI quality lever; self-hosted (content never leaves infra); OpenAI stays the only external vendor. |
+| 5 | Reranking | **Local BGE cross-encoder** (`BAAI/bge-reranker-v2-m3`) via a direct `sentence-transformers` `CrossEncoder` (lazy-loaded, off the event loop), **optional** (build extra `INSTALL_RERANK` + runtime `RERANK_ENABLED`) | Highest-ROI quality lever; self-hosted (content never leaves infra); OpenAI stays the only external vendor. Direct `CrossEncoder` (not LangChain `ContextualCompressionRetriever`) because our retriever is custom hybrid SQL, not a LangChain retriever. CPU-bound: excellent on GPU, slow on CPU — so it ships optional/toggleable, hybrid-only by default. |
 | 6 | Scraper | **Playwright (headless) + trafilatura (+ lxml fallback)** | ABB is a Next.js app rendering content *and* listing links via JS — a headless browser over `sitemap.xml` is required for full coverage (incl. requisites/card tables); trafilatura extracts, lxml recovers structured tables. (Scrapy HTTP was tried and removed: it only saw ~344 nav pages.) |
 | 7 | Embedding model | **`text-embedding-3-large`** | Top multilingual retrieval quality (AZ/EN/RU); cost trivial for one site. |
 | 7a | Chat models | **`gpt-4o`** primary + **`gpt-4o-mini`** auxiliary, **env-driven** | Flagship for answers, mini for query-rewrite/summary/guardrail; `gpt-5` is a one-line env switch. |
@@ -131,16 +131,18 @@ abb-rag/
 
 ## 5. Phase Index
 
-| Phase | File | Outcome |
-| ----- | ---- | ------- |
-| P1 Foundations | `01-foundations.md` | Monorepo, tooling, shared contracts, Docker + DB skeleton, CI scaffold |
-| P2 Scraper | `02-scraper.md` | `corpus.json` from abb-bank.az (AZ/EN/RU, segment-tagged) |
-| P3 Indexing & RAG core | `03-indexing-rag-core.md` | `libs/rag`: chunk → embed → pgvector; hybrid retrieve + BGE rerank |
-| P4 Backend API | `04-backend-api.md` | chat/ingestion/analytics services, SSE, async worker, persistence, guardrail, memory |
-| P5 Frontend | `05-frontend.md` | Upload→localforage, streaming chat + citations, i18n (AZ/RU/EN) |
-| P6 Visualization | `06-visualization.md` | analytics-service + recharts dashboard |
-| P7 Containerization | `07-containerization.md` | Dockerfiles, compose, Redis rate-limit, CI complete |
-| P8 Eval & Docs | `08-eval-and-docs.md` | RAGAS harness, READMEs, demo script |
+| Phase | File | Status | Outcome |
+| ----- | ---- | ------ | ------- |
+| P1 Foundations | `01-foundations.md` | ✅ done | Monorepo, tooling, shared contracts, Docker + DB skeleton, CI scaffold |
+| P2 Scraper | `02-scraper.md` | ✅ done | `corpus.json` from abb-bank.az (AZ/EN/RU, segment-tagged) |
+| P3 Indexing & RAG core | `03-indexing-rag-core.md` | ✅ done | `libs/rag`: chunk → embed → pgvector; hybrid retrieve + BGE rerank |
+| P4 Backend API | `04-backend-api.md` | ✅ done | chat/ingestion/analytics services, SSE, async worker, persistence, guardrail, memory |
+| P5 Frontend | `05-frontend.md` | ⬜ next | Upload→localforage, streaming chat + citations, i18n (AZ/RU/EN) |
+| P6 Visualization | `06-visualization.md` | ⬜ | analytics-service + recharts dashboard |
+| P7 Containerization | `07-containerization.md` | 🟦 partial | Dockerfiles, compose, worker, model prebake, graceful shutdown done early; rate-limit + CI image build remain |
+| P8 Eval & Docs | `08-eval-and-docs.md` | ⬜ | RAGAS harness, READMEs, demo script |
+
+> **Build/run note (cross-phase):** `POSTGRES_HOST_PORT` overrides the host port if a native Postgres occupies 5432. Reranking is optional — `INSTALL_RERANK=true` (build) bakes the BGE model into the chat image; `RERANK_ENABLED=true` (runtime) turns it on; both default off for lean, fast, GPU-free operation.
 
 **Suggested execution order:** P1 → P2 ∥ P3 → P4 → P5 ∥ P6 → P7 → P8.
 (P2 and P3 can run in parallel after P1; P5 and P6 can run in parallel after P4.)

@@ -48,6 +48,15 @@ docker compose up --build     # postgres, redis, ingestion, worker, chat, analyt
 Then open the web app, upload a `corpus.json` (generate one with the scraper, or use
 the committed sample), wait for indexing, and start asking questions about ABB.
 
+- **Port clash:** if a native Postgres already uses `5432`, set `POSTGRES_HOST_PORT=5433`
+  in `.env` (container-internal wiring is unaffected).
+- **Reranking (optional):** hybrid search answers well on its own and is the default.
+  To enable the local BGE reranker, build the chat image with `INSTALL_RERANK=true`
+  and set `RERANK_ENABLED=true` — best on GPU (CPU rerank is slow).
+- **Manual API testing:** each service serves Swagger at `/docs` (`:8001` ingestion,
+  `:8002` chat, `:8003` analytics). `POST /chat` is an SSE stream — use `curl -N` to
+  see live tokens.
+
 ### Generate a corpus (the scraper "script")
 
 ```bash
@@ -76,5 +85,9 @@ pnpm --dir apps/web install && pnpm --dir apps/web dev
 
 ## Status
 
-Phase **P1 (Foundations)** — scaffolding in place. See [`.plans/00-master-plan.md`](.plans/00-master-plan.md)
-for the full roadmap and the Day-2 de-risking gate.
+Backend complete through **P4**: scraper → `corpus.json` (P2), the `libs/rag`
+retrieval core (P3), and the three FastAPI microservices — chat (SSE, guardrail,
+prompt-injection defense, memory, citations), ingestion (async arq worker), and
+analytics — with full persistence (P4). Next: **P5** (web UI), **P6** (dashboard),
+**P7** (rate limiting + CI image build), **P8** (RAGAS eval + docs). See
+[`.plans/00-master-plan.md`](.plans/00-master-plan.md) for the full roadmap.

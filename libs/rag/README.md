@@ -103,10 +103,12 @@ RERANK_ENABLED=false uv run python scripts/verify_rag.py
   hybrid + RRF + `halfvec` + equal-language fallback aren't cleanly expressible
   through LangChain's vectorstore/retriever abstractions. LangChain's orchestration
   role is the chat generation chain (P4).
-- **Reranking adds image weight.** `sentence-transformers` pulls `torch` (the
-  largest dependency). `RERANK_ENABLED=false` skips loading the model at runtime,
-  but the package is still installed — a truly lean image needs a build without the
-  reranker dependency.
+- **Reranking is an optional dependency.** `sentence-transformers` (which pulls
+  `torch`, the largest dependency) lives in the `rerank` extra, not the core deps.
+  Service images stay lean by default; the chat image opts in at build via
+  `INSTALL_RERANK=true` (which also bakes the model in and runs it offline).
+  `RERANK_ENABLED` then toggles it at runtime. The cross-encoder is CPU-bound —
+  fast on GPU, slow on CPU (scale down `RETRIEVAL_CANDIDATES` if enabling on CPU).
 - **Reranking runs off the event loop** (`asyncio.to_thread`) so the CPU-bound
   cross-encoder doesn't block concurrent chat requests.
 - **Boilerplate is finalized at full ingest.** The document-frequency scan runs

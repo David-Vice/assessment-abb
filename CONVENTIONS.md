@@ -37,31 +37,35 @@ OpenAPI → generated Zod schemas on the frontend. Everything Dockerized.
 ## 2. Backend layout (stereotype directories, pythonic names)
 
 ```
-libs/rag/abb_rag/
-  settings.py            # pydantic-settings (env-driven config)
+libs/rag/abb_rag/            # shared retrieval brain + cross-service settings
+  settings.py            # pydantic-settings (env-driven config, shared by all services)
   db.py                  # async engine/session + pool
+  models.py              # Chunk / RetrievedChunk value objects (frozen)
   chunking.py            # pure: document -> chunks
-  embeddings.py          # OpenAI embeddings client (retry)
-  vectorstore.py         # pgvector upsert/query
+  dedup.py               # pure: boilerplate + duplicate chunk removal
+  embeddings.py          # OpenAI embeddings client (batched, retry, dim-asserted)
+  vectorstore.py         # pgvector upsert/query (idempotent on content_hash)
   retriever.py           # hybrid dense+sparse + RRF
-  rerank.py              # BGE cross-encoder (lazy, toggle)
+  rrf.py                 # pure: reciprocal rank fusion
+  rerank.py              # BGE cross-encoder (lazy, off-loop, toggle)
   pipeline.py            # ingest_corpus() / retrieve() orchestration
-  prompts/               # jinja prompt templates + loaders
-  exceptions.py          # typed error hierarchy
+  exceptions.py / log.py # typed error hierarchy; structlog config
 
 apps/<service>/abb_<service>/
-  main.py                # FastAPI app factory + lifespan
-  config.py              # service Settings
-  api/routers/*.py       # one router module per resource (chat, ingest, ...)
-  api/dependencies.py    # FastAPI Depends providers
-  services/*.py          # business logic (classes or functions)
-  repositories/*.py      # DB access (async)
+  main.py                # FastAPI app factory + lifespan (deps on app.state)
+  routers/*.py           # one router module per resource (chat, ingest, ...)
+  <domain>.py            # domain modules: generation, guardrail, memory, context,
+                         #   persistence, llm, prompts, progress, worker, redis_pool
+                         #   (flat, single-responsibility — no api/services/repos nesting)
 
 packages/contracts/abb_contracts/
-  corpus.py  chat.py  ingestion.py  analytics.py   # Pydantic v2 boundary models
+  corpus.py  chat.py  ingestion.py  analytics.py  enums.py   # Pydantic v2 boundary models
 ```
 
-- Domain-named snake_case files inside stereotype directories (`services/chat.py`), **not** `chat_service.py` suffixes.
+- Config: one shared `Settings` (`libs/rag`) read via `get_settings()`; no per-service `config.py`.
+- Prompts are reviewable Python constants/message-builders in the chat app (`prompts.py`), not a template directory — generation is chat-domain, not shared retrieval.
+- App-scoped singletons (Redis pool, etc.) built in `lifespan`, stored on `app.state`.
+- Domain-named snake_case modules (`generation.py`, `guardrail.py`), **not** `*_service.py` suffixes.
 - Classes `PascalCase`; functions/modules `snake_case`; constants `SCREAMING_SNAKE_CASE` at file top.
 - Public methods before private (`_private`) helpers.
 

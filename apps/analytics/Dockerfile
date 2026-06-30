@@ -22,4 +22,6 @@ RUN uv sync --frozen --package abb-analytics --no-dev
 RUN useradd -m appuser && chown -R appuser /app
 USER appuser
 EXPOSE 8003
-CMD ["uv", "run", "--no-sync", "--no-dev", "uvicorn", "abb_analytics.main:app", "--host", "0.0.0.0", "--port", "8003"]
+# Exec the server binary directly so it is PID 1 and receives SIGTERM for a fast
+# graceful shutdown (no `uv run` wrapper swallowing the signal).
+CMD ["/app/.venv/bin/uvicorn", "abb_analytics.main:app", "--host", "0.0.0.0", "--port", "8003"]

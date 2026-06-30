@@ -11,6 +11,14 @@ Package everything for one-command deployment, add Redis-backed rate limiting,
 and complete the CI pipeline. Satisfies brief requirement 4 (Docker) and the
 Efficiency / Code Quality criteria.
 
+> **Status:** the image/compose foundation landed early during P4 testing and is
+> live: per-service Dockerfiles (uv, non-root, `--no-install-workspace` dep layer
+> for cache reuse), the `worker` service, the configurable `POSTGRES_HOST_PORT`,
+> the optional reranker (build arg `INSTALL_RERANK` → `rerank` extra), the baked +
+> offline reranker model, and graceful shutdown (exec-form CMD + `init: true` +
+> `stop_grace_period`). **Remaining for P7:** Redis rate limiting, the CI image-build
+> job, and the web dev override.
+
 ## Decisions
 
 1. **One image per service, multi-stage builds**
@@ -21,9 +29,14 @@ Efficiency / Code Quality criteria.
    - Decision: `docker-compose.yml` orchestrates postgres, redis, the services, the worker, and web (served via nginx static build). Healthchecks + depends_on ordering + named volumes.
    - Rationale: Brief asks for a portable Docker deployment; compose is the right scope for one week.
 
-3. **BGE reranker model baked or cached at build**
-   - Decision: Pre-download the reranker into the chat image layer (or a shared model volume) so first request isn't slow and runtime needs no model download.
-   - Rationale: Predictable latency; offline-capable runtime.
+3. **BGE reranker model baked at build, loaded offline** ✅ done
+   - Decision: When `INSTALL_RERANK=true`, pre-download the reranker in a layer **before** the app-source COPY (so code edits don't re-trigger it), and run with `HF_HUB_OFFLINE=1` so the runtime never contacts the Hub. Default build is lean (no torch).
+   - Rationale: Predictable latency, offline runtime, fast rebuilds. Industry best practice for a ~600 MB model is bake-into-image (vs runtime download) — validated against AWS EKS AI/ML guidance.
+   - Note: the cross-encoder is CPU-bound; on CPU, latency scales with `RETRIEVAL_CANDIDATES`. Default ships rerank off; enable on GPU for production.
+
+6. **Graceful shutdown** ✅ done
+   - Decision: Exec the server/worker binary directly as PID 1 (`/app/.venv/bin/uvicorn|arq`, not `uv run`), plus `init: true` (tini) and `stop_grace_period` per service.
+   - Rationale: `uv run` as PID 1 swallowed SIGTERM, forcing ~150s SIGKILL waits on `compose down`. Exec-form + tini delivers the signal so uvicorn/arq stop in ~1s.
 
 4. **Redis token-bucket rate limiting**
    - Decision: Middleware on chat + ingestion (per-IP/session), limits from env.
