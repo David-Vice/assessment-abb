@@ -6,6 +6,7 @@ import os
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 from abb_contracts import Corpus
 from abb_rag import ingest_corpus
@@ -33,7 +34,7 @@ def _disable_rerank() -> None:
 
 
 def _ensure_rerank_ready() -> None:
-    """Fail fast when .env enables rerank but sentence-transformers is missing."""
+    """Fail fast when rerank is enabled but sentence-transformers is missing."""
     settings = get_settings()
     if not settings.rerank_enabled:
         return
@@ -41,17 +42,27 @@ def _ensure_rerank_ready() -> None:
         import sentence_transformers  # noqa: F401
     except ImportError:
         print(
-            "RERANK_ENABLED=true but sentence-transformers is not installed in this environment.\n"
-            "For prod-faithful scores (same stack as chat), run eval in Docker:\n"
-            "  docker compose --profile eval run --rm eval --corpus /app/corpus.sample.json "
-            "--stem baseline\n"
-            "Or pass --no-rerank for a quick local run without cross-encoder reranking.",
+            "RERANK_ENABLED=true but sentence-transformers is not installed.\n"
+            "Rebuild the eval image after chat (keeps the rerank extra):\n"
+            "  docker compose build chat\n"
+            "  docker compose --profile eval build eval\n"
+            "Or pass --no-rerank for a quick run without cross-encoder reranking.",
             file=sys.stderr,
         )
         sys.exit(1)
 
 
+def _normalize_container_path(path: Path) -> Path:
+    """Undo Git Bash path mangling (`/app/...` → `C:/Program Files/Git/app/...`)."""
+    text = path.as_posix()
+    marker = "/Program Files/Git/app/"
+    if marker in text:
+        return Path("/app") / path.name
+    return path
+
+
 async def _ingest(corpus_path: Path) -> None:
+    corpus_path = _normalize_container_path(corpus_path)
     raw = await asyncio.to_thread(corpus_path.read_text, encoding="utf-8")
     corpus = Corpus.model_validate_json(raw)
     indexed = await ingest_corpus(corpus)
@@ -66,13 +77,41 @@ async def _run_all(items: list[GoldenItem]) -> list[ItemResult]:
     return results
 
 
+_RAGAS_METRICS = (
+    "faithfulness",
+    "answer_relevancy",
+    "context_precision",
+    "context_recall",
+)
+
+
+def _extract_ragas_scores(raw: Any) -> dict[str, float | None]:
+    from ragas.utils import safe_nanmean
+
+    scores: dict[str, float | None] = {}
+    for name in _RAGAS_METRICS:
+        try:
+            value = safe_nanmean(raw[name])
+        except KeyError:
+            continue
+        if value is None:
+            scores[name] = None
+        else:
+            scores[name] = float(value)
+    return scores
+
+
 def _score_ragas(rows: list[dict[str, object]]) -> dict[str, float | None]:
     if not rows:
         return {}
 
     from datasets import Dataset
+    from langchain_openai import OpenAIEmbeddings as LangchainOpenAIEmbeddings
+    from openai import OpenAI
     from ragas import evaluate
     from ragas.dataset_schema import EvaluationResult
+    from ragas.embeddings.base import LangchainEmbeddingsWrapper
+    from ragas.llms import llm_factory
     from ragas.metrics import (
         answer_relevancy,
         context_precision,
@@ -80,14 +119,31 @@ def _score_ragas(rows: list[dict[str, object]]) -> dict[str, float | None]:
         faithfulness,
     )
 
+    settings = get_settings()
+    api_key = settings.openai_api_key.get_secret_value()
+    if not api_key:
+        print("OPENAI_API_KEY not set; cannot run RAGAS scoring.", file=sys.stderr)
+        return {}
+
+    # RAGAS auto-default embeddings use the modern provider API (embed_text), but
+    # answer_relevancy still calls embed_query — pass LangChain wrappers explicitly.
+    client = OpenAI(api_key=api_key)
+    llm = llm_factory(settings.aux_model, client=client)
+    embeddings = LangchainEmbeddingsWrapper(
+        LangchainOpenAIEmbeddings(model=settings.embedding_model, api_key=api_key)  # type: ignore[call-arg]
+    )
+
     dataset = Dataset.from_list(rows)
     raw = evaluate(
         dataset,
         metrics=[faithfulness, answer_relevancy, context_precision, context_recall],
+        llm=llm,  # type: ignore[arg-type]
+        embeddings=embeddings,
     )
     if not isinstance(raw, EvaluationResult):
+        print(f"Unexpected RAGAS result type: {type(raw)!r}", file=sys.stderr)
         return {}
-    return {name: float(value) for name, value in raw._repr_dict.items()}
+    return _extract_ragas_scores(raw)
 
 
 async def run_eval(
@@ -107,7 +163,14 @@ async def run_eval(
 
     ragas: dict[str, float | None] = {}
     if not skip_ragas:
-        ragas = _score_ragas(ragas_rows(items))
+        rows = ragas_rows(items)
+        if not rows:
+            print("No answered golden-set items to score with RAGAS.", file=sys.stderr)
+            sys.exit(1)
+        ragas = _score_ragas(rows)
+        if not ragas:
+            print("RAGAS scoring produced no metrics.", file=sys.stderr)
+            sys.exit(1)
 
     report = build_report(items, guardrail, ragas)
     timestamp = datetime.now(tz=UTC).strftime("%Y%m%dT%H%M%SZ")
@@ -132,7 +195,7 @@ def main() -> None:
         "--corpus",
         type=Path,
         default=None,
-        help="Optional corpus.json to ingest before evaluation",
+        help="Optional corpus.json to ingest first (in Docker use corpus.sample.json)",
     )
     parser.add_argument(
         "--skip-ragas",
@@ -160,11 +223,13 @@ def main() -> None:
     else:
         print("rerank: disabled", flush=True)
     _configure_event_loop()
+    corpus_path = _normalize_container_path(args.corpus) if args.corpus else None
+    output_dir = _normalize_container_path(args.output_dir)
     json_path, md_path = asyncio.run(
         run_eval(
             golden_path=args.golden_set,
-            output_dir=args.output_dir,
-            corpus_path=args.corpus,
+            output_dir=output_dir,
+            corpus_path=corpus_path,
             skip_ragas=args.skip_ragas,
             stem=args.stem,
         )

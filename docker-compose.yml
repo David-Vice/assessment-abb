@@ -22,8 +22,11 @@ services:
 
   redis:
     image: redis:7-alpine
+    command: redis-server --appendonly yes
     ports:
       - "6379:6379"
+    volumes:
+      - redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -118,9 +121,9 @@ services:
     ports:
       - "5173:80"
     depends_on:
-      - chat
-      - ingestion
-      - analytics
+      chat: { condition: service_healthy }
+      ingestion: { condition: service_healthy }
+      analytics: { condition: service_healthy }
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:80/ || exit 1"]
       interval: 10s
@@ -128,15 +131,15 @@ services:
       retries: 5
     networks: [abb_net]
 
-  # Offline eval with the same deps + env as chat (incl. optional rerank).
-  # Usage: docker compose --profile eval run --rm eval --stem baseline
+  # Offline eval — thin layer on the chat image (same rerank stack, no re-download).
+  # Build chat first, then eval: docker compose build chat && docker compose --profile eval build eval
   eval:
     profiles: [eval]
     build:
       context: .
       dockerfile: eval/Dockerfile
       args:
-        INSTALL_RERANK: ${INSTALL_RERANK:-false}
+        CHAT_IMAGE: abb-rag-chat
     env_file: [.env]
     environment:
       HF_HUB_OFFLINE: "1"
@@ -148,6 +151,7 @@ services:
 
 volumes:
   pg_data:
+  redis_data:
 
 networks:
   abb_net:

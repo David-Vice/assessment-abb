@@ -5,25 +5,19 @@ guardrail, retrieval, and generation stack as `apps/chat` (no HTTP mocking).
 
 ## Prod-faithful eval (recommended)
 
-Use this when `RERANK_ENABLED=true` in `.env` — same rerank stack as the chat
-container (torch + BGE cross-encoder baked into the eval image).
+Reuses the **chat Docker image** (same rerank stack as production). The eval image
+only adds `abb-eval` + RAGAS — no second torch/CUDA download.
 
 ```bash
+docker compose build chat
+docker compose --profile eval build eval   # ~1–3 min after chat exists
+
 docker compose --profile eval run --rm eval \
-  --corpus /app/corpus.sample.json \
+  --corpus corpus.sample.json \
   --stem baseline
 
-# or
+# or (builds chat + eval, then runs):
 bash scripts/run_eval_prod.sh --stem baseline
-```
-
-Reports are written to `eval/results/` on the host. Inside the container,
-`DATABASE_URL` from `.env` already points at `postgres:5432` on the compose network.
-
-Rebuild when `INSTALL_RERANK` or deps change:
-
-```bash
-docker compose --profile eval build eval
 ```
 
 ## Quick local eval (no rerank)
@@ -62,3 +56,20 @@ questions plus deliberate off-topic and injection probes for guardrail scoring.
 | RAGAS | faithfulness, answer_relevancy, context_precision, context_recall |
 | Guardrail | precision / recall on off-topic + injection items |
 | Operational | avg / p95 latency per item (in report) |
+
+## Baseline results (committed)
+
+Prod-faithful run on `corpus.sample.json` with rerank + full RAGAS:
+
+| Metric | Score |
+| --- | ---: |
+| faithfulness | 0.773 |
+| answer_relevancy | 0.690 |
+| context_precision | 0.875 |
+| context_recall | 0.857 |
+| guardrail precision / recall | 0.714 / 1.000 |
+| latency avg / p95 | 12s / 34s |
+
+Full reports: [`results/baseline.md`](results/baseline.md) ·
+[`results/baseline.json`](results/baseline.json) ·
+[`results/README.md`](results/README.md) (methodology and caveats).

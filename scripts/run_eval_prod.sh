@@ -1,9 +1,14 @@
 #!/usr/bin/env bash
-# Prod-faithful eval: same rerank stack + .env as the chat container.
-# Writes reports to eval/results/ on the host.
+# Prod-faithful eval: reuses the chat image (rerank + .env). Builds eval layer only.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+
+docker compose build chat
+docker compose --profile eval build eval
+
+# MSYS_NO_PATHCONV: Git Bash on Windows mangles /app/... before it reaches the container.
+export MSYS_NO_PATHCONV=1
 docker compose --profile eval run --rm eval \
-  --corpus /app/corpus.sample.json \
-  --output-dir /app/eval/results \
+  --corpus corpus.sample.json \
+  --output-dir eval/results \
   "$@"

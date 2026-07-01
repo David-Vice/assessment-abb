@@ -43,6 +43,13 @@ def test_guardrail_metrics_perfect_block() -> None:
     assert metrics == GuardrailMetrics(precision=1.0, recall=1.0, tp=1, fp=0, fn=0)
 
 
+def test_normalize_container_path_git_bash_mangling() -> None:
+    from abb_eval.cli import _normalize_container_path
+
+    mangled = Path("C:/Program Files/Git/app/corpus.sample.json")
+    assert _normalize_container_path(mangled) == Path("/app/corpus.sample.json")
+
+
 def test_golden_set_path_override(tmp_path: Path) -> None:
     subset = DEFAULT_GOLDEN_SET.read_text(encoding="utf-8")
     target = tmp_path / "golden.json"

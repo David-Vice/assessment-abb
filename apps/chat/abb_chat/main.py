@@ -17,8 +17,8 @@ logger = get_logger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     configure_logging()
-    # Rate limiting is best-effort: if Redis is unreachable, requests pass through
-    # (see RateLimitMiddleware) so chat never breaks because Redis is down.
+    # When Redis is unreachable at startup, requests pass through unthrottled.
+    # Per-request Redis errors fail closed by default (RATE_LIMIT_FAIL_OPEN=false).
     try:
         app.state.redis = Redis.from_url(get_settings().redis_url)
     except Exception as error:  # noqa: BLE001
@@ -35,13 +35,14 @@ def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(title="ABB RAG — Chat Service", lifespan=lifespan)
 
+    app.add_middleware(RateLimitMiddleware, scope="chat")
+    # Outermost so CORS headers are attached to rate-limit (429) responses too.
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origin_list,
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    app.add_middleware(RateLimitMiddleware, scope="chat")
 
     @app.exception_handler(AppError)
     async def handle_app_error(_: Request, exc: AppError) -> JSONResponse:

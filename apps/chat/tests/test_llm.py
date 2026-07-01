@@ -1,12 +1,14 @@
+import pytest
 from abb_chat.llm import MAX_RETRIES, get_aux_model, get_chat_model, message_text
+from abb_rag.settings import get_settings
 
 
-def test_models_configured_with_retries() -> None:
-    # Arrange — clear caches so settings are re-read.
+def test_models_configured_with_retries(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    get_settings.cache_clear()
     get_chat_model.cache_clear()
     get_aux_model.cache_clear()
 
-    # Act & Assert — every OpenAI call retries on rate-limit/timeout.
     assert get_chat_model().max_retries == MAX_RETRIES
     assert get_aux_model().max_retries == MAX_RETRIES
 

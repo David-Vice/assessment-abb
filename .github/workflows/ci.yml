@@ -81,5 +81,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Prepare env file
+        run: cp .env.example .env
       - name: Build images
         run: docker compose build
+      - name: Smoke test stack
+        run: |
+          docker compose up -d --wait
+          docker compose ps
+          docker compose down -v

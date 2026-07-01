@@ -15,7 +15,10 @@ docker compose up --build
 
 Wait until all services report healthy (`docker compose ps`).
 
-Open the web app (compose maps web to port 80 or the configured host port).
+Open the web app at **http://localhost:5173** (compose maps container port 80 to host 5173).
+
+Backend URLs are baked into the SPA at build time (`VITE_*` in compose). For a remote
+host demo, rebuild `web` with the reachable API URLs or override the build args.
 
 ## 2. Corpus (choose one)
 
@@ -66,11 +69,11 @@ Switch to **Dashboard**. Highlight:
 
 ```bash
 docker compose --profile eval run --rm eval \
-  --corpus /app/corpus.sample.json --stem baseline
+  --corpus corpus.sample.json --stem baseline
 ```
 
 Open `eval/results/baseline.md` — RAGAS scores, guardrail precision/recall,
-per-question table. Use this for demo numbers when `RERANK_ENABLED=true`.
+per-question table. Summary and caveats: [`eval/results/README.md`](eval/results/README.md).
 
 ## 7. Architecture talking points
 

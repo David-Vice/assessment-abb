@@ -123,7 +123,7 @@ requires-dist = [
     { name = "abb-rag-core", editable = "libs/rag" },
     { name = "datasets", specifier = ">=3.0" },
     { name = "langchain-community", specifier = ">=0.3,<0.4" },
-    { name = "ragas", specifier = ">=0.2" },
+    { name = "ragas", specifier = "==0.4.3" },
 ]
 
 [[package]]

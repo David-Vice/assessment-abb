@@ -66,6 +66,16 @@ def test_get_unknown_job_returns_404(client: TestClient) -> None:
     assert response.status_code == 404
 
 
+def test_ingest_rejects_oversized_content_length(client: TestClient) -> None:
+    response = client.post(
+        "/ingest",
+        json=_payload(),
+        headers={"content-length": str(51 * 1024 * 1024)},
+    )
+    assert response.status_code == 400
+    assert response.json()["code"] == "VALIDATION_ERROR"
+
+
 def test_rate_limit_returns_429(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     from abb_rag.settings import get_settings
 

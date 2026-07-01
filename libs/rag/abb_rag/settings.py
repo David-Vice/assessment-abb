@@ -28,7 +28,11 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql+psycopg://abb:abb@localhost:5432/abb_rag"
     redis_url: str = "redis://localhost:6379/0"
-    rate_limit_per_minute: int = 60
+    rate_limit_per_minute: int = 10
+    # Only trust X-Forwarded-For when behind a configured reverse proxy.
+    rate_limit_trust_proxy: bool = False
+    # When False, Redis errors deny the request (fail-closed). True allows traffic through.
+    rate_limit_fail_open: bool = False
 
     cors_origins: str = "http://localhost:5173"
 

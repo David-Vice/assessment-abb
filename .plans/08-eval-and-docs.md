@@ -62,5 +62,5 @@ scored criterion.
 
 - [x] `uv run pytest` includes eval tests
 - [x] `uv run abb-eval --skip-ragas` runs without RAGAS API cost
-- [ ] Full RAGAS baseline committed after live run with `OPENAI_API_KEY`
+- [x] Full RAGAS baseline committed — [`eval/results/baseline.md`](../eval/results/baseline.md) (2026-07-01, prod rerank + `corpus.sample.json`)
 - [x] DEMO.md walkthrough matches current UI and API ports

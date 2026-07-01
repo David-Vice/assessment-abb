@@ -81,7 +81,7 @@ pnpm --dir apps/web install && pnpm --dir apps/web dev
 | `apps/scraper/` | Playwright crawler → `corpus.json` |
 | `apps/web/` | React SPA (upload, chat, dashboard) |
 | `infra/` | `postgres/init.sql`, CI workflows |
-| `eval/` | RAGAS evaluation harness + golden set |
+| `eval/` | RAGAS evaluation harness, golden set, [baseline results](eval/results/README.md) |
 
 ## Database volume
 

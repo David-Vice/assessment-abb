@@ -1,16 +1,42 @@
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 
 from abb_rag import AppError, configure_logging, get_settings
+from abb_rag.exceptions import InputValidationError
 from abb_rag.rate_limit import RateLimitMiddleware
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response
 
 from abb_ingestion.redis_pool import create_redis_pool
 from abb_ingestion.routers.ingest import router as ingest_router
 
 SERVICE_NAME = "ingestion"
+_MAX_INGEST_BODY_BYTES = 50 * 1024 * 1024
+
+
+class MaxIngestBodyMiddleware(BaseHTTPMiddleware):
+    async def dispatch(
+        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
+        if request.method == "POST" and request.url.path == "/ingest":
+            raw_length = request.headers.get("content-length")
+            if raw_length is not None:
+                try:
+                    content_length = int(raw_length)
+                except ValueError:
+                    content_length = _MAX_INGEST_BODY_BYTES + 1
+                if content_length > _MAX_INGEST_BODY_BYTES:
+                    exc = InputValidationError(
+                        f"request body exceeds {_MAX_INGEST_BODY_BYTES // (1024 * 1024)} MB limit"
+                    )
+                    return JSONResponse(
+                        status_code=exc.status_code,
+                        content={"code": exc.code, "detail": exc.message},
+                    )
+        return await call_next(request)
 
 
 @asynccontextmanager
@@ -27,13 +53,14 @@ def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(title="ABB RAG — Ingestion Service", lifespan=lifespan)
 
+    app.add_middleware(MaxIngestBodyMiddleware)
+    app.add_middleware(RateLimitMiddleware, scope="ingestion")
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origin_list,
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    app.add_middleware(RateLimitMiddleware, scope="ingestion")
 
     @app.exception_handler(AppError)
     async def handle_app_error(_: Request, exc: AppError) -> JSONResponse:
