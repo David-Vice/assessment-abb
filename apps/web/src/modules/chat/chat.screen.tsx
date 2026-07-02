@@ -14,9 +14,14 @@ import { useChat } from './hooks/use-chat';
 interface ChatScreenProps {
   onGoToUpload: () => void;
   onGoToDashboard: () => void;
+  onLogoClick?: () => void;
 }
 
-export function ChatScreen({ onGoToUpload, onGoToDashboard }: ChatScreenProps): React.JSX.Element {
+export function ChatScreen({
+  onGoToUpload,
+  onGoToDashboard,
+  onLogoClick,
+}: ChatScreenProps): React.JSX.Element {
   const { t } = useTranslation();
   const language = useAppStore((s) => s.language);
   const sessionId = useAppStore((s) => s.sessionId);
@@ -39,42 +44,70 @@ export function ChatScreen({ onGoToUpload, onGoToDashboard }: ChatScreenProps): 
 
   const headerActions = (
     <>
-      <Button variant="ghost" size="sm" onClick={onGoToDashboard} className="gap-1.5 text-xs">
-        <BarChart3 className="h-3.5 w-3.5" />
-        {t('nav.dashboard')}
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={onGoToDashboard}
+        className="h-10 w-10 shrink-0 sm:h-8 sm:w-auto sm:px-3"
+        aria-label={t('nav.dashboard')}
+      >
+        <BarChart3 className="h-4 w-4" />
+        <span className="hidden sm:inline sm:ml-1.5 sm:text-xs">{t('nav.dashboard')}</span>
       </Button>
-      <Button variant="ghost" size="sm" onClick={onGoToUpload} className="gap-1.5 text-xs">
-        <Upload className="h-3.5 w-3.5" />
-        {t('nav.upload')}
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={onGoToUpload}
+        className="h-10 w-10 shrink-0 sm:h-8 sm:w-auto sm:px-3"
+        aria-label={t('nav.upload')}
+      >
+        <Upload className="h-4 w-4" />
+        <span className="hidden sm:inline sm:ml-1.5 sm:text-xs">{t('nav.upload')}</span>
       </Button>
-      <Button variant="ghost" size="sm" onClick={handleNewChat} className="gap-1.5 text-xs">
-        <PlusCircle className="h-3.5 w-3.5" />
-        {t('chat.newChat')}
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={handleNewChat}
+        className="h-10 w-10 shrink-0 sm:h-8 sm:w-auto sm:px-3"
+        aria-label={t('chat.newChat')}
+      >
+        <PlusCircle className="h-4 w-4" />
+        <span className="hidden sm:inline sm:ml-1.5 sm:text-xs">{t('chat.newChat')}</span>
       </Button>
     </>
   );
 
   return (
-    <div className="flex flex-col h-screen">
-      <Header actions={headerActions} />
+    <div className="abb-app-shell abb-page-bg">
+      <Header actions={headerActions} onLogoClick={onLogoClick} />
 
-      {/* Message area */}
-      <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin px-4 pt-4">
-        {messages.length === 0 ? (
-          <SuggestedQuestions onSelect={handleSuggestedQuestion} />
-        ) : (
-          <MessageList messages={messages} />
-        )}
-      </div>
+      <div className="flex min-h-0 flex-1 flex-col px-2 sm:px-4">
+        <div className="abb-shell">
+          <div
+            className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin px-0.5 pt-3 sm:px-1 sm:pt-4"
+            role="log"
+            aria-live="polite"
+            aria-label={t('chat.conversation')}
+          >
+            {messages.length === 0 ? (
+              <SuggestedQuestions onSelect={handleSuggestedQuestion} />
+            ) : (
+              <MessageList messages={messages} />
+            )}
+          </div>
 
-      {/* Input bar */}
-      <div className="shrink-0 border-t bg-card px-4 py-3">
-        {isStreaming && (
-          <p className="text-xs text-muted-foreground mb-2 animate-pulse text-center">
-            {t('chat.thinking')}
-          </p>
-        )}
-        <ChatInput onSend={handleSend} disabled={isStreaming} />
+          <div className="abb-input-bar">
+            {isStreaming && (
+              <p className="mb-2 text-center text-xs text-muted-foreground" aria-live="polite">
+                {t('chat.thinking')}
+              </p>
+            )}
+            <ChatInput onSend={handleSend} sendDisabled={isStreaming} />
+            <p className="mt-2 px-1 text-center text-[10px] leading-relaxed text-muted-foreground sm:text-[11px]">
+              {t('chat.disclaimer')}
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -4,44 +4,49 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222 47% 11%;
+    /* ABB Bank — deep institutional blue, soft gray surfaces */
+    --background: 214 32% 97%;
+    --foreground: 218 54% 12%;
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
-    --primary: 219 85% 52%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 214 32% 95%;
-    --secondary-foreground: 222 47% 11%;
-    --muted: 214 32% 95%;
-    --muted-foreground: 215 16% 47%;
-    --accent: 214 32% 95%;
-    --accent-foreground: 222 47% 11%;
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 219 85% 52%;
-    --radius: 0.5rem;
+    --card-foreground: 218 54% 12%;
+    --primary: 212 100% 36%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 214 40% 94%;
+    --secondary-foreground: 218 40% 20%;
+    --muted: 214 28% 93%;
+    --muted-foreground: 215 16% 42%;
+    --accent: 212 85% 95%;
+    --accent-foreground: 212 100% 28%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 214 24% 88%;
+    --input: 214 24% 88%;
+    --ring: 212 100% 36%;
+    --radius: 0.75rem;
+    --abb-gradient-start: 212 100% 36%;
+    --abb-gradient-end: 205 90% 48%;
   }
 
   .dark {
-    --background: 222 47% 7%;
+    --background: 218 40% 8%;
     --foreground: 210 40% 98%;
-    --card: 222 47% 11%;
+    --card: 218 38% 11%;
     --card-foreground: 210 40% 98%;
-    --primary: 219 85% 60%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 217 33% 17%;
+    --primary: 212 90% 55%;
+    --primary-foreground: 218 54% 8%;
+    --secondary: 217 28% 16%;
     --secondary-foreground: 210 40% 98%;
-    --muted: 217 33% 17%;
-    --muted-foreground: 215 20% 65%;
-    --accent: 217 33% 17%;
-    --accent-foreground: 210 40% 98%;
+    --muted: 217 28% 16%;
+    --muted-foreground: 215 18% 62%;
+    --accent: 212 40% 18%;
+    --accent-foreground: 212 90% 75%;
     --destructive: 0 62% 45%;
     --destructive-foreground: 0 0% 98%;
-    --border: 217 33% 20%;
-    --input: 217 33% 17%;
-    --ring: 219 85% 60%;
+    --border: 217 28% 20%;
+    --input: 217 28% 18%;
+    --ring: 212 90% 55%;
+    --abb-gradient-start: 212 90% 55%;
+    --abb-gradient-end: 205 80% 45%;
   }
 }
 
@@ -50,9 +55,72 @@
     @apply border-border;
   }
 
+  html {
+    @apply antialiased;
+    -webkit-tap-highlight-color: transparent;
+  }
+
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground overflow-x-hidden;
     font-feature-settings: 'rlig' 1, 'calt' 1;
+  }
+}
+
+@layer components {
+  .abb-gradient-text {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(
+      135deg,
+      hsl(var(--abb-gradient-start)),
+      hsl(var(--abb-gradient-end))
+    );
+  }
+
+  .abb-gradient-bg {
+    background-image: linear-gradient(
+      135deg,
+      hsl(var(--abb-gradient-start)),
+      hsl(var(--abb-gradient-end))
+    );
+  }
+
+  .abb-page-bg {
+    background-color: hsl(var(--background));
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -20%, hsl(var(--primary) / 0.12), transparent),
+      radial-gradient(ellipse 60% 40% at 100% 0%, hsl(var(--primary) / 0.06), transparent);
+  }
+
+  .abb-glass {
+    @apply border border-white/60 bg-card/90 backdrop-blur-md shadow-sm;
+  }
+
+  .dark .abb-glass {
+    @apply border-white/10 bg-card/80;
+  }
+
+  .abb-shell {
+    @apply mx-auto flex h-full w-full max-w-full flex-col px-0 sm:max-w-2xl md:max-w-3xl lg:max-w-4xl;
+  }
+
+  /* Full viewport height — dvh accounts for mobile browser chrome */
+  .abb-app-shell {
+    @apply flex min-h-dvh flex-col;
+    height: 100dvh;
+  }
+
+  .abb-safe-bottom {
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  }
+
+  .abb-safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .abb-input-bar {
+    @apply shrink-0 border-t border-border/50 bg-background/75 backdrop-blur-md;
+    @apply py-3 sm:py-4;
+    @apply abb-safe-bottom;
   }
 }
 
@@ -66,20 +134,20 @@
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb {
-  @apply bg-border rounded-full;
+  @apply rounded-full bg-border;
 }
 
 /* Markdown prose resets for chat messages */
 .prose-chat p {
-  @apply mb-2 last:mb-0;
+  @apply mb-2 last:mb-0 leading-relaxed;
 }
 
 .prose-chat ul {
-  @apply list-disc ml-4 mb-2;
+  @apply mb-2 ml-4 list-disc;
 }
 
 .prose-chat ol {
-  @apply list-decimal ml-4 mb-2;
+  @apply mb-2 ml-4 list-decimal;
 }
 
 .prose-chat li {
@@ -89,15 +157,15 @@
 .prose-chat h1,
 .prose-chat h2,
 .prose-chat h3 {
-  @apply font-semibold mb-1 mt-2;
+  @apply mb-1 mt-2 font-semibold;
 }
 
 .prose-chat code {
-  @apply bg-muted text-foreground px-1 py-0.5 rounded text-sm font-mono;
+  @apply rounded bg-muted px-1 py-0.5 font-mono text-sm text-foreground;
 }
 
 .prose-chat pre {
-  @apply bg-muted p-3 rounded mb-2 overflow-x-auto;
+  @apply mb-2 overflow-x-auto rounded-lg bg-muted p-3;
 }
 
 .prose-chat pre code {
@@ -110,4 +178,14 @@
 
 .prose-chat strong {
   @apply font-semibold;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

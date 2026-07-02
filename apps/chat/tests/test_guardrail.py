@@ -31,4 +31,8 @@ async def test_classify_maps_model_label(
     monkeypatch.setattr(guardrail_module, "get_aux_model", lambda: _FakeAuxModel(label))
 
     # Act & Assert
-    assert await classify("question") is expected
+    assert await classify("What is the minimum loan amount?") is expected
+
+
+async def test_classify_short_circuits_social_openers() -> None:
+    assert await classify("Hi") is Verdict.ON_TOPIC

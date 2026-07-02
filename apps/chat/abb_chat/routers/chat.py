@@ -16,7 +16,7 @@ from abb_chat.guardrail import Verdict, classify
 from abb_chat.lang_detect import auto_language
 from abb_chat.memory import load_history, rewrite_query
 from abb_chat.persistence import fetch_recent_turns, insert_chat_log
-from abb_chat.prompts import off_topic_refusal
+from abb_chat.prompts import is_social_opener, off_topic_refusal, social_welcome
 
 logger = get_logger(__name__)
 router = APIRouter(tags=["chat"])
@@ -65,34 +65,40 @@ async def _chat_events(request: Request, body: ChatRequest) -> AsyncIterator[dic
     effective_language = auto_language(body.question, hint=body.language)
 
     try:
-        verdict = await classify(body.question)
-        if verdict is not Verdict.ON_TOPIC:
-            status = _DECLINED_STATUS[verdict]
-            refusal = off_topic_refusal(effective_language)
-            answer_parts.append(refusal)
-            logger.info(
-                "chat_declined",
-                verdict=verdict.value,
-                language=effective_language.value,
-                ui_language=body.language.value,
-            )
-            yield _event("token", {"token": refusal})
+        if is_social_opener(body.question):
+            welcome = social_welcome(effective_language)
+            answer_parts.append(welcome)
+            logger.info("chat_social_welcome", language=effective_language.value)
+            yield _event("token", {"token": welcome})
         else:
-            history = await load_history(body.session_id) if settings.chat_memory_enabled else []
-            search_query = await rewrite_query(body.question, history) if history else body.question
-            async with session_scope() as session:
-                chunks = await retrieve(session, search_query, effective_language)
-            retrieved_ids = [chunk.chunk_id for chunk in chunks]
-            citations = to_citations(chunks)
-            context = build_context(chunks, settings.context_token_budget)
+            verdict = await classify(body.question)
+            if verdict is not Verdict.ON_TOPIC:
+                status = _DECLINED_STATUS[verdict]
+                refusal = off_topic_refusal(effective_language)
+                answer_parts.append(refusal)
+                logger.info(
+                    "chat_declined",
+                    verdict=verdict.value,
+                    language=effective_language.value,
+                    ui_language=body.language.value,
+                )
+                yield _event("token", {"token": refusal})
+            else:
+                history = await load_history(body.session_id) if settings.chat_memory_enabled else []
+                search_query = await rewrite_query(body.question, history) if history else body.question
+                async with session_scope() as session:
+                    chunks = await retrieve(session, search_query, effective_language)
+                retrieved_ids = [chunk.chunk_id for chunk in chunks]
+                citations = to_citations(chunks)
+                context = build_context(chunks, settings.context_token_budget)
 
-            async for token in stream_answer(
-                body.question, effective_language, context, history, usage
-            ):
-                if await request.is_disconnected():
-                    break
-                answer_parts.append(token)
-                yield _event("token", {"token": token})
+                async for token in stream_answer(
+                    body.question, effective_language, context, history, usage
+                ):
+                    if await request.is_disconnected():
+                        break
+                    answer_parts.append(token)
+                    yield _event("token", {"token": token})
 
         # Success path: persist, then emit the single terminal `done` event.
         # Skipped if the client already left — the `finally` still persists.

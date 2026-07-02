@@ -11,7 +11,7 @@ from abb_rag.log import get_logger
 from abb_rag.models import Chunk, RetrievedChunk
 from abb_rag.retriever import hybrid_search
 from abb_rag.settings import get_settings
-from abb_rag.vectorstore import load_existing_hashes, upsert_document
+from abb_rag.vectorstore import load_existing_hashes, prune_documents_not_in_urls, upsert_document
 
 logger = get_logger(__name__)
 
@@ -20,18 +20,20 @@ ProgressCallback = Callable[[int, int], Awaitable[None]]
 
 
 async def ingest_corpus(corpus: Corpus, on_progress: ProgressCallback | None = None) -> int:
-    """Chunk → dedup → embed → upsert. Idempotent: unchanged docs are skipped.
+    """Chunk → dedup → embed → upsert. Re-upload prunes stale URLs; unchanged docs are skipped.
 
-    Owns its transactions: hashes are read in a short transaction, embedding runs
-    outside any transaction (no idle-in-transaction across OpenAI I/O), and each
-    document is written in its own transaction so progress is durable on failure.
-    Returns the number of chunks indexed in this run.
+    Owns its transactions: stale documents are pruned and hashes read in a short
+    transaction, embedding runs outside any transaction (no idle-in-transaction across
+    OpenAI I/O), and each document is written in its own transaction so progress is
+    durable on failure. Returns the number of chunks indexed in this run.
     """
 
     chunked = [(document, chunk_document(document)) for document in corpus.documents]
     boilerplate = find_boilerplate([chunks for _, chunks in chunked])
 
+    corpus_urls = [document.url for document in corpus.documents]
     async with session_scope() as session:
+        await prune_documents_not_in_urls(session, corpus_urls)
         existing = await load_existing_hashes(session)
 
     pending: list[tuple[CorpusDocument, list[Chunk]]] = [

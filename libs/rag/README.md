@@ -29,12 +29,14 @@ Schema is owned by `infra/postgres/init.sql` — this layer only connects and qu
 corpus.json
   → chunk every document (heading-aware, token-budgeted)
   → find short cross-page boilerplate (doc-frequency ≥ threshold, length-guarded) and drop it
-  → skip documents whose content_hash already matches (idempotent)
+  → prune documents whose URLs are absent from the upload (replace, not merge)
+  → skip documents whose content_hash already matches (idempotent re-upload)
   → embed surviving chunks in batches (text-embedding-3-large → 3072-dim)
   → upsert: insert halfvec embeddings; tsv is DB-generated
 ```
 
-Re-ingesting an unchanged `corpus.json` is a no-op. A changed `content_hash`
+Re-ingesting an unchanged `corpus.json` is a no-op. Uploading a different corpus
+removes stale URLs first, then indexes the new set. A changed `content_hash`
 transactionally replaces that document's chunks.
 
 ## Retrieval flow (`retrieve`)

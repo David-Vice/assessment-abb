@@ -21,6 +21,12 @@ _UPDATE_DOC = text(
 
 _DELETE_CHUNKS = text("DELETE FROM chunks WHERE document_id = :id")
 
+_DELETE_ORPHAN_CHUNKS = text(
+    "DELETE FROM chunks WHERE document_id IN "
+    "(SELECT id FROM documents WHERE NOT (url = ANY(:urls)))"
+)
+_DELETE_ORPHAN_DOCS = text("DELETE FROM documents WHERE NOT (url = ANY(:urls))")
+
 # tsv is a GENERATED column — we insert `content` only and let Postgres derive it.
 _INSERT_CHUNK = text(
     "INSERT INTO chunks "
@@ -35,6 +41,18 @@ async def load_existing_hashes(session: AsyncSession) -> dict[str, str]:
 
     rows = (await session.execute(text("SELECT url, content_hash FROM documents"))).all()
     return {row.url: row.content_hash for row in rows}
+
+
+async def prune_documents_not_in_urls(session: AsyncSession, urls: Sequence[str]) -> None:
+    """Drop indexed documents absent from the incoming corpus so re-uploads replace, not merge."""
+
+    if not urls:
+        await session.execute(text("DELETE FROM chunks"))
+        await session.execute(text("DELETE FROM documents"))
+        return
+
+    await session.execute(_DELETE_ORPHAN_CHUNKS, {"urls": list(urls)})
+    await session.execute(_DELETE_ORPHAN_DOCS, {"urls": list(urls)})
 
 
 async def upsert_document(

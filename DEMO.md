@@ -20,6 +20,18 @@ Open the web app at **http://localhost:5173** (compose maps container port 80 to
 Backend URLs are baked into the SPA at build time (`VITE_*` in compose). For a remote
 host demo, rebuild `web` with the reachable API URLs or override the build args.
 
+## Responsive layout
+
+The SPA is tuned for **mobile (320px+)**, **tablet**, and **desktop**:
+
+- `100dvh` app shell (avoids mobile browser URL bar clipping)
+- Safe-area padding for notched devices (`viewport-fit=cover`)
+- Icon-only header actions on small screens; touch targets ≥ 44px
+- Chat column widens progressively: full width → `max-w-2xl` → `max-w-4xl`
+- Dashboard charts stack on mobile, 2-column on large screens
+
+Details: [`docs/PROJECT_SCOPE.md`](docs/PROJECT_SCOPE.md#responsive-design).
+
 ## 2. Corpus (choose one)
 
 ### Option A — Scrape (shows extraction)

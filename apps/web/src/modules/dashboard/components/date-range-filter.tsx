@@ -25,28 +25,28 @@ export function DateRangeFilter({
   const { t } = useTranslation();
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <div className="flex items-center gap-1">
+    <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+      <div className="flex w-full flex-wrap items-center gap-1 sm:w-auto">
         {PRESETS.map((p) => (
           <Button
             key={p}
             variant={preset === p ? 'default' : 'outline'}
             size="sm"
             onClick={() => onPresetChange(p)}
-            className="text-xs"
+            className="min-h-10 flex-1 text-xs sm:min-h-8 sm:flex-none"
           >
             {t(`dashboard.range.${p}`)}
           </Button>
         ))}
       </div>
 
-      <div className="flex items-center gap-1">
+      <div className="flex w-full flex-wrap items-center gap-1 sm:w-auto">
         {LANGS.map((l) => (
           <button
             key={l ?? 'all'}
             onClick={() => onLangChange(l)}
             className={cn(
-              'rounded-md px-2.5 py-1 text-xs font-medium uppercase transition-colors',
+              'min-h-10 flex-1 rounded-md px-2.5 py-2 text-xs font-medium uppercase transition-colors sm:min-h-0 sm:flex-none sm:py-1',
               lang === l
                 ? 'bg-primary text-primary-foreground'
                 : 'bg-muted text-muted-foreground hover:bg-accent',

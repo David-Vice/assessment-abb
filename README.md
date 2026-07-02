@@ -7,7 +7,7 @@ visualizes usage analytics — all containerized for one-command deployment.
 
 > Built for the "Data Extraction, Conversational AI, and Visualization" case study.
 > Design decisions and phase plans live in [`.plans/`](.plans/); coding conventions
-> in [`CONVENTIONS.md`](CONVENTIONS.md).
+> in [`CONVENTIONS.md`](CONVENTIONS.md). Full scope record: [`docs/PROJECT_SCOPE.md`](docs/PROJECT_SCOPE.md).
 
 ## Architecture
 

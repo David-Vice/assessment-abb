@@ -33,7 +33,7 @@ export function CitationsPanel({ citations }: CitationsPanelProps): React.JSX.El
             href={citation.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-start gap-2 rounded-lg border bg-card px-3 py-2 text-xs hover:bg-accent transition-colors group"
+            className="flex items-start gap-2.5 rounded-xl border border-border/80 bg-muted/40 px-3 py-2.5 text-xs transition-colors hover:border-primary/30 hover:bg-accent/50 group"
           >
             <ExternalLink className="h-3 w-3 mt-0.5 shrink-0 text-muted-foreground group-hover:text-foreground" />
             <div className="flex-1 min-w-0">

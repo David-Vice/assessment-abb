@@ -4,7 +4,7 @@ from abb_rag import ExternalServiceError
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from abb_chat.llm import get_aux_model, message_text
-from abb_chat.prompts import GUARDRAIL_SYSTEM
+from abb_chat.prompts import GUARDRAIL_SYSTEM, is_social_opener
 
 
 class Verdict(StrEnum):
@@ -15,6 +15,9 @@ class Verdict(StrEnum):
 
 async def classify(question: str) -> Verdict:
     """Gate each question: on-topic ABB banking, off-topic, or injection attempt."""
+
+    if is_social_opener(question):
+        return Verdict.ON_TOPIC
 
     messages = [SystemMessage(content=GUARDRAIL_SYSTEM), HumanMessage(content=question)]
     try:

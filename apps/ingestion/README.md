@@ -25,8 +25,9 @@ GET /ingest/{job_id} → read progress hash → IngestionStatus
 ```
 
 - The worker calls `libs/rag.ingest_corpus`, which owns its own DB transactions
-  (read hashes → embed outside a txn → per-document write) and is idempotent on
-  `content_hash` (re-uploading the same corpus is a no-op).
+  (prune stale URLs → read hashes → embed outside a txn → per-document write).
+  Re-uploading replaces documents not in the new corpus; unchanged `content_hash`
+  rows are skipped (idempotent).
 - Progress (`state`, `processed`, `total`, `error`) lives in a Redis hash
   (`ingest:progress:{job_id}`), written by the worker and read by the API.
 

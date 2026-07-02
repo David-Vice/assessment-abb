@@ -23,7 +23,9 @@ export function useIngestion(): UseIngestionResult {
     mutationFn: postIngest,
     onSuccess: (job) => {
       setJobId(job.job_id);
-      setCorpusStatus('ingesting');
+      if (useAppStore.getState().corpusStatus !== 'ready') {
+        setCorpusStatus('ingesting');
+      }
     },
   });
 
@@ -44,7 +46,8 @@ export function useIngestion(): UseIngestionResult {
       setCorpusStatus('ready');
       setJobId(null);
     } else if (state === 'failed') {
-      setCorpusStatus('failed');
+      const hadIndexedCorpus = useAppStore.getState().docCount > 0;
+      setCorpusStatus(hadIndexedCorpus ? 'ready' : 'failed');
       setIngestionError(poll.data?.error ?? 'upload.failed');
       setJobId(null);
     }

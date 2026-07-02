@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { AbbLogo } from '@/modules/common/components/abb-logo';
 import { Header } from '@/modules/common/components/header';
 import { useAppStore } from '@/store/app-store';
 
@@ -11,9 +12,14 @@ import { IngestionProgress } from './components/ingestion-progress';
 import { useCorpus } from './hooks/use-corpus';
 import { useIngestion } from './hooks/use-ingestion';
 
-export function UploadScreen(): React.JSX.Element {
+interface UploadScreenProps {
+  onLogoClick?: () => void;
+}
+
+export function UploadScreen({ onLogoClick }: UploadScreenProps): React.JSX.Element {
   const { t } = useTranslation();
   const corpusStatus = useAppStore((s) => s.corpusStatus);
+  const jobId = useAppStore((s) => s.jobId);
   const ingestionError = useAppStore((s) => s.ingestionError);
   const resetCorpus = useAppStore((s) => s.resetCorpus);
 
@@ -32,22 +38,26 @@ export function UploadScreen(): React.JSX.Element {
     reset();
   };
 
-  const isIngesting = corpusStatus === 'ingesting';
+  const isIngesting = corpusStatus === 'ingesting' || (!!jobId && corpusStatus === 'ready');
   const isFailed = corpusStatus === 'failed';
 
   return (
-    <div className="flex flex-col h-screen">
-      <Header />
+    <div className="abb-app-shell abb-page-bg">
+      <Header onLogoClick={onLogoClick} />
 
-      <main className="flex-1 flex items-center justify-center p-6 bg-background">
-        <div className="w-full max-w-lg space-y-6">
-          {/* Hero text */}
-          <div className="text-center space-y-2">
-            <h1 className="text-2xl font-bold tracking-tight">{t('upload.title')}</h1>
-            <p className="text-muted-foreground text-sm">{t('upload.subtitle')}</p>
+      <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-3 sm:flex sm:items-center sm:justify-center sm:p-6">
+        <div className="mx-auto w-full max-w-lg space-y-5 sm:space-y-6">
+          <div className="space-y-2 text-center">
+            <div className="flex justify-center sm:hidden">
+              <AbbLogo height={36} />
+            </div>
+            <h1 className="text-xl font-bold tracking-tight sm:text-3xl">
+              <span className="abb-gradient-text">{t('upload.title')}</span>
+            </h1>
+            <p className="text-sm leading-relaxed text-muted-foreground">{t('upload.subtitle')}</p>
           </div>
 
-          <Card>
+          <Card className="border-border/80 shadow-soft">
             <CardHeader className="pb-3">
               <CardTitle className="text-base">
                 {isIngesting ? t('upload.indexing') : t('upload.dropHere')}

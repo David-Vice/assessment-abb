@@ -64,9 +64,11 @@ export function Dropzone({
       onDragLeave={() => setIsDragging(false)}
       onDrop={onDrop}
       className={cn(
-        'flex flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed p-10 transition-colors cursor-pointer',
-        isDragging ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50 hover:bg-accent/30',
-        isValid && 'border-green-500 bg-green-50 dark:bg-green-950/20',
+        'flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed p-6 transition-all sm:gap-4 sm:p-10',
+        isDragging
+          ? 'border-primary bg-primary/5 shadow-soft'
+          : 'border-border/80 bg-muted/30 hover:border-primary/40 hover:bg-accent/40',
+        isValid && 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/20',
         isInvalid && 'border-destructive bg-destructive/5',
       )}
       onClick={() => !isLoading && inputRef.current?.click()}

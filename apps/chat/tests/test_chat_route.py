@@ -128,6 +128,30 @@ async def test_chat_happy_path_streams_persists_and_dedups_citations(
     assert captured["retrieved_ids"] == [1, 2, 3]
 
 
+async def test_chat_welcomes_social_opener_without_guardrail_or_retrieval(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, Any] = {}
+
+    async def fail_classify(question: str) -> Verdict:
+        raise AssertionError(f"classify should not run for social opener: {question!r}")
+
+    async def fail_retrieve(session: Any, query: str, language: Any) -> list[RetrievedChunk]:
+        raise AssertionError("retrieve should not run for social opener")
+
+    _patch(monkeypatch, captured=captured)
+    monkeypatch.setattr(chat_module, "classify", fail_classify)
+    monkeypatch.setattr(chat_module, "retrieve", fail_retrieve)
+
+    events = await _collect(_FakeRequest(), _request("Hi"))
+
+    answer = json.loads(next(e for e in events if e["event"] == "done")["data"])["answer"]
+    assert "ABB Bank" in answer
+    assert "only answer questions" not in answer.lower()
+    assert captured["status"] is AnswerStatus.ANSWERED
+    assert captured["retrieved_ids"] == []
+
+
 @pytest.mark.parametrize("verdict", [Verdict.OFF_TOPIC, Verdict.INJECTION])
 async def test_chat_declines_offtopic_and_injection_without_retrieval(
     monkeypatch: pytest.MonkeyPatch, verdict: Verdict

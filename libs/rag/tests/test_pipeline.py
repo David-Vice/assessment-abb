@@ -31,6 +31,10 @@ async def _fake_scope() -> AsyncIterator[object]:
     yield object()
 
 
+async def _noop_prune(session: Any, urls: list[str]) -> None:
+    return None
+
+
 async def test_ingest_corpus_embeds_and_indexes_with_aligned_slices(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -53,6 +57,7 @@ async def test_ingest_corpus_embeds_and_indexes_with_aligned_slices(
         return 1
 
     monkeypatch.setattr(pipeline_module, "session_scope", _fake_scope)
+    monkeypatch.setattr(pipeline_module, "prune_documents_not_in_urls", _noop_prune)
     monkeypatch.setattr(pipeline_module, "load_existing_hashes", fake_hashes)
     monkeypatch.setattr(pipeline_module, "embed_texts", fake_embed)
     monkeypatch.setattr(pipeline_module, "upsert_document", fake_upsert)
@@ -82,6 +87,7 @@ async def test_ingest_corpus_is_idempotent_when_hashes_match(
         return []
 
     monkeypatch.setattr(pipeline_module, "session_scope", _fake_scope)
+    monkeypatch.setattr(pipeline_module, "prune_documents_not_in_urls", _noop_prune)
     monkeypatch.setattr(pipeline_module, "load_existing_hashes", fake_hashes)
     monkeypatch.setattr(pipeline_module, "embed_texts", fake_embed)
 
@@ -91,3 +97,35 @@ async def test_ingest_corpus_is_idempotent_when_hashes_match(
     # Assert — unchanged doc → nothing indexed and no embedding call.
     assert indexed == 0
     assert embed_calls == 0
+
+
+async def test_ingest_corpus_prunes_urls_not_in_upload(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Arrange
+    corpus = _corpus([_doc("https://abb-bank.az/a", "sha256:a")])
+    pruned_urls: list[str] = []
+
+    async def fake_prune(session: Any, urls: list[str]) -> None:
+        pruned_urls.extend(urls)
+
+    async def fake_hashes(session: Any) -> dict[str, str]:
+        return {}
+
+    async def fake_embed(texts: list[str]) -> list[list[float]]:
+        return [[0.1] * 4 for _ in texts]
+
+    async def fake_upsert(
+        session: Any, document: CorpusDocument, chunks: Sequence[Chunk], embeddings: Sequence[Any]
+    ) -> int:
+        return 1
+
+    monkeypatch.setattr(pipeline_module, "session_scope", _fake_scope)
+    monkeypatch.setattr(pipeline_module, "prune_documents_not_in_urls", fake_prune)
+    monkeypatch.setattr(pipeline_module, "load_existing_hashes", fake_hashes)
+    monkeypatch.setattr(pipeline_module, "embed_texts", fake_embed)
+    monkeypatch.setattr(pipeline_module, "upsert_document", fake_upsert)
+
+    # Act
+    await ingest_corpus(corpus)
+
+    # Assert — stale URLs are removed before indexing the new corpus.
+    assert pruned_urls == ["https://abb-bank.az/a"]

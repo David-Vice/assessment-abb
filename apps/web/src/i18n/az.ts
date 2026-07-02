@@ -1,6 +1,7 @@
 const az = {
   common: {
-    abbAssistant: 'ABB Köməkçisi',
+    abbAssistant: 'ABB AI Köməkçisi',
+    tagline: 'Müasir · Faydalı · Universal',
     poweredBy: 'ABB Bank tərəfindən təqdim edilir',
   },
   upload: {
@@ -27,9 +28,22 @@ const az = {
     placeholder: 'ABB Bankı haqqında hər hansı bir sual verin…',
     send: 'Göndər',
     newChat: 'Yeni söhbət',
-    thinking: 'ABB Köməkçisi düşünür…',
+    you: 'Sizin mesajınız',
+    conversation: 'ABB AI Köməkçisi ilə söhbət',
+    thinking: 'ABB bilik bazası axtarılır və cavab hazırlanır…',
     citations: 'Mənbələr',
-    suggestedTitle: 'Bunları soruşmağa cəhd edin:',
+    sourcesCount: '{{count}} mənbə',
+    sourcesCount_other: '{{count}} mənbə',
+    welcomeTitle: 'Bu gün sizə necə kömək edə bilərəm?',
+    welcomeSubtitle:
+      'ABB Bankın rəsmi saytından cavab verirəm — məhsullar, kartlar, kreditlər, hesablar və xidmətlər (AZ, EN, RU).',
+    disclaimer:
+      'Cavablar dərc olunmuş ABB məzmununa əsaslanır, hesabınıza deyil. Şəxsi bank əməliyyatları üçün ABB mobile və ya filialdan istifadə edin.',
+    capabilities: {
+      can: 'ABB məhsulları, rüsumlar, kartlar, kreditlər və xidmətləri izah edə bilərəm.',
+      cannot: 'Hesabınıza daxil ola, pul köçürə və ya şəxsi investisiya/hüquqi məsləhət verə bilmərəm.',
+    },
+    suggestedTitle: 'Bunları soruşmağa cəhd edin',
     error: 'Nə isə səhv getdi. Zəhmət olmasa yenidən cəhd edin.',
     suggested: [
       'ABB Bankın əsas xidmətləri hansılardır?',

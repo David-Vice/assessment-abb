@@ -1,6 +1,7 @@
 const en = {
   common: {
-    abbAssistant: 'ABB Assistant',
+    abbAssistant: 'ABB AI Assistant',
+    tagline: 'Modern · Useful · Universal',
     poweredBy: 'Powered by ABB Bank',
   },
   upload: {
@@ -27,9 +28,22 @@ const en = {
     placeholder: 'Ask anything about ABB Bank…',
     send: 'Send',
     newChat: 'New chat',
-    thinking: 'ABB Assistant is thinking…',
+    you: 'Your message',
+    conversation: 'Conversation with ABB AI Assistant',
+    thinking: 'Searching ABB knowledge and composing an answer…',
     citations: 'Sources',
-    suggestedTitle: 'Try asking:',
+    sourcesCount: '{{count}} source',
+    sourcesCount_other: '{{count}} sources',
+    welcomeTitle: 'How can I help you today?',
+    welcomeSubtitle:
+      'I answer from ABB Bank’s official website — products, cards, loans, accounts, and services in AZ, EN, and RU.',
+    disclaimer:
+      'Answers are based on published ABB content, not your account. For personal banking, use ABB mobile or visit a branch.',
+    capabilities: {
+      can: 'I can explain ABB products, fees, cards, loans, and how to use our services.',
+      cannot: 'I cannot access your account, move money, or give personal investment or legal advice.',
+    },
+    suggestedTitle: 'Try asking',
     error: 'Something went wrong. Please try again.',
     suggested: [
       "What are ABB Bank's main services?",
